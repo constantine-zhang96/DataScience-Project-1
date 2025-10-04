@@ -1,0 +1,77 @@
+---
+title: "Data_Science_1"
+output: html_document
+date: "2025-10-03"
+---
+
+```{r libaray, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+
+```{r data import and cleaning na value}
+data_counties <- read.csv("introdata_merged_counties.csv")
+head(data_counties)
+data_counties %>% drop_na()
+```
+
+```{r data set summary}
+summary(data_counties)
+```
+```{r}
+ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Scatter Plot Example",
+    x = "bachelor_degree_numbers_2016_2020",
+    y = "per_capita_personal_income_2020" 
+  ) 
+
+ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Scatter Plot Example",
+    x = "associate_degree_numbers_2016_2020",
+    y = "per_capita_personal_income_2020"
+  ) 
+
+```
+
+```{r scatter plot after exclude extrem value}
+ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Scatter Plot Example",
+    x = "bachelor_degree_numbers_2016_2020",
+    y = "per_capita_personal_income_2020" 
+  ) + 
+  scale_x_continuous(limits = c(0, 150000))  + 
+  scale_y_continuous(limits = c(0, 100000))
+
+
+ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Scatter Plot Example",
+    x = "associate_degree_numbers_2016_2020",
+    y = "per_capita_personal_income_2020"
+  ) +
+  scale_x_continuous(limits = c(0, 150000))  +
+  scale_y_continuous(limits = c(0, 100000))
+
+```
+```{r exclude extreme value}
+# find an metrics for determine extreme values
+```
+
+
+
+
+
+

@@ -1,19 +1,49 @@
 ---
-title: "Data_Science_1"
-output: html_document
-date: "2025-10-03"
+title: "Data Science Project 1"
+date: "`r Sys.Date()`"
+author: 
+  - "Constantine Zhang"
+  - "Ha Nguyen"
+  - "Kemal Ege Sural"
+output: 
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(results="markup", warning = F, message = F,
+                      fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
+options(scientific=T, digits = 3) 
+```
 
-```{r libaray, warning=FALSE}
+```{r library, include = FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(tinytex)
+library(kableExtra)
 ```
+
+```{r data import and cleaning na value, include = FALSE}
 
 ```{r data import and cleaning na value}
 data_counties <- read.csv("introdata_merged_counties.csv")
-head(data_counties)
 data_counties %>% drop_na()
+```
+
+```{r preview data}
+kable(
+  head(data_counties, 5),
+  caption = "Table 1. First 5 rows of counties data",
+  format = "html",
+  align = "c"
+) |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") |>
+  scroll_box(width = "100%", height = "300px")
 ```
 
 ```{r data set summary}
@@ -24,18 +54,18 @@ ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_
   geom_point() +
   theme_minimal() +
   labs(
-    title = "Scatter Plot Example",
-    x = "bachelor_degree_numbers_2016_2020",
-    y = "per_capita_personal_income_2020" 
+    title = "Bachelor’s Degree Numbers vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Number of Bachelor's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
   ) 
 
 ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capita_personal_income_2020 )) +
   geom_point() +
   theme_minimal() +
   labs(
-    title = "Scatter Plot Example",
-    x = "associate_degree_numbers_2016_2020",
-    y = "per_capita_personal_income_2020"
+    title = "Associate’s Degree Numbers vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Number of Associate's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
   ) 
 
 ```
@@ -45,9 +75,10 @@ ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_
   geom_point() +
   theme_minimal() +
   labs(
-    title = "Scatter Plot Example",
-    x = "bachelor_degree_numbers_2016_2020",
-    y = "per_capita_personal_income_2020" 
+    title = "Bachelor’s Degree Numbers vs. Per Capita Personal Income (2020) 
+    Scatter Plot - Exclude extreme value",
+    x = "Number of Bachelor's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)" 
   ) + 
   scale_x_continuous(limits = c(0, 150000))  + 
   scale_y_continuous(limits = c(0, 100000))
@@ -57,9 +88,10 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
   geom_point() +
   theme_minimal() +
   labs(
-    title = "Scatter Plot Example",
-    x = "associate_degree_numbers_2016_2020",
-    y = "per_capita_personal_income_2020"
+    title = "Associate’s Degree Numbers vs. Per Capita Personal Income (2020) 
+    Scatter Plot - Exclude extreme value",
+    x = "Number of Associate's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
   ) +
   scale_x_continuous(limits = c(0, 150000))  +
   scale_y_continuous(limits = c(0, 100000))

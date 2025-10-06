@@ -10,7 +10,6 @@ library(dplyr)
 library(tidyr)
 ```
 
-
 ```{r data import and cleaning na value}
 data_counties <- read.csv("introdata_merged_counties.csv")
 head(data_counties)
@@ -67,7 +66,13 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 ```
 ```{r exclude extreme value}
-# find an metrics for determine extreme values
+# find an metrics for determine extreme values, we exclude extreme value that is more than 5 # standard deviation away
+quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
+quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
+
+
+
+
 ```
 
 

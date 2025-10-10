@@ -27,8 +27,7 @@ library(tinytex)
 library(kableExtra)
 ```
 
-
-```{r data import and cleaning na value}
+```{r data import and cleaning na value, include = FALSE}
 data_counties <- read.csv("introdata_merged_counties.csv")
 data_counties %>% drop_na()
 ```
@@ -48,8 +47,7 @@ kable(
 ```{r data set summary}
 summary(data_counties)
 ```
-
-```{r basic plot graph}
+```{r}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
   geom_point() +
   theme_minimal() +
@@ -70,16 +68,6 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 ```
 
-```{r exclude extreme value}
-# find an metrics for determine extreme values, we exclude extreme value that is more than 5 # standard deviation away
-upperL2020 <- mean(data_counties$per_capita_personal_income_2020) + 5*sd(data_counties$per_capita_personal_income_2020)
-
-upperLBachelor2020 <- mean(data_counties$bachelor_degree_numbers_2016_2020) + 5*sd(data_counties$bachelor_degree_numbers_2016_2020)
-
-upperLAssociate2020<- mean(data_counties$associate_degree_numbers_2016_2020) + 5*sd(data_counties$associate_degree_numbers_2016_2020)
-```
-
-
 ```{r scatter plot after exclude extrem value}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
   geom_point() +
@@ -90,8 +78,8 @@ ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_
     x = "Number of Bachelor's Degree 2016-2020",
     y = "Personal Income Per Capita (2020)" 
   ) + 
-  scale_x_continuous(limits = c(0, upperLBachelor2020)) +
-  scale_y_continuous(limits = c(0, upperL))
+  scale_x_continuous(limits = c(0, 150000))  + 
+  scale_y_continuous(limits = c(0, 100000))
 
 
 ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capita_personal_income_2020 )) +
@@ -103,12 +91,45 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
     x = "Number of Associate's Degree 2016-2020",
     y = "Personal Income Per Capita (2020)"
   ) +
-  scale_x_continuous(limits = c(0, upperLAssociate2020)) +
-  scale_y_continuous(limits = c(0, upperL2020))
+  scale_x_continuous(limits = c(0, 150000))  +
+  scale_y_continuous(limits = c(0, 100000))
 
 ```
 
+```{r exclude extreme value}
+# find an metrics for determine extreme values, we exclude extreme value that is more than 5 # standard deviation away
+quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
+quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
 
+```
+
+```{r  finding Confidence Intervals for income, degree, population}
+per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
+per_capita_2019_ci_95 <- per_capita_2019_ttest$conf.int
+
+per_capita_2020_ttest <- t.test(x=data_counties$per_capita_personal_income_2020, conf.level=0.95)
+per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
+
+per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
+per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
+
+bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2015_2019, conf.level=0.95)
+bachelor_ci_95 <- bachelor_ttest$conf.int
+
+associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
+associate_ci_95 <- associate_ttest$conf.int
+```
+
+```{r  T-test to compare mean of income and degree between counties}
+#In this section, we will conduct annova test to test the null hypothesis of difference in mean of income and degree across states
+
+
+
+```
+
+```{r  Chi-squares}
+#In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states
+```
 
 
 

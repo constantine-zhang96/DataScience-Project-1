@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
-options(scientific=T, digits = 3) 
+options(scientific=T, digits = 3,scipen = 999) 
 ```
 
 ```{r library, include = FALSE}
@@ -130,6 +130,30 @@ associate_ci_95 <- associate_ttest$conf.int
 ```{r  Chi-squares}
 #In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states
 ```
+
+```{r Per Capita Personal Income Distribution by State (2020)}
+
+data_counties_filtered <- data_counties %>%
+  group_by(state) %>%
+  mutate(median_income_state = median(per_capita_personal_income_2020, na.rm = TRUE)) %>%
+  ungroup() %>%
+  filter(state %in% unique(.$state)[1:15]) 
+
+ggplot(data_counties_filtered, aes(x = reorder(state, per_capita_personal_income_2020, FUN = median), 
+                                   y = per_capita_personal_income_2020, 
+                                   fill = state)) +
+  geom_boxplot() +
+  coord_flip() + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    title = "Per Capita Personal Income Distribution by State (2020)",
+    x = "State",
+    y = "Per Capita Personal Income (2020)"
+  )
+```
+
+The box plot for "Per Capita Personal Income Distribution by State (2020)" provides a summary assessment of county level economic differences within the sampled states. The visualization focuses on the top 15 states, which were selected to ensure the clarity and readability of the detailed comparisons. The analysis of central tendency indicates clear economic tiers: Massachusetts (MA) exhibits the highest median per capita income, placing it alongside New Jersey (NJ) and Maryland (MD) in the most affluent group. Conversely, states like Tennessee (TN) display a distribution concentrated at the lower end of the income scale. Colorado (CO) and Ohio (OH) present the widest boxes, signifying the greatest income disparity in income across their counties. Finally, the extreme high outliers observed in New York (NY) and California (CA) highlight the substantial concentration of wealth in a limited number of exceptional counties that significantly influence state averages.
 
 
 

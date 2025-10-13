@@ -47,6 +47,7 @@ kable(
 ```{r data set summary}
 summary(data_counties)
 ```
+
 ```{r}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
   geom_point() +
@@ -122,10 +123,57 @@ associate_ci_95 <- associate_ttest$conf.int
 
 ```{r  T-test to compare mean of income and degree between counties}
 #In this section, we will conduct annova test to test the null hypothesis of difference in mean of income and degree across states
-
-
-
+data_counties$state <- as.factor(data_counties$state)
+anova_model_Income <- aov(per_capita_personal_income_2020 ~ state, data = data_counties)
+summary(anova_model_Income)
+#group by to get state level mean
+state_means <- data_counties %>%
+  group_by(state) %>%
+  summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
+#bar chart to look at distribution of state level mean income 
+ggplot(state_means, aes(x = state, y = mean_income)) +
+  geom_col(fill = "skyblue") +
+  labs(title = "Mean Income by State",
+       x = "State",
+       y = "Mean Income") +
+  theme_minimal()
 ```
+This result is statistically significant at even 1% level. That imply there is a difference in average income between states at 1% level.  
+
+```{r}
+anova_model_Bachelor <- aov(bachelor_degree_numbers_2016_2020 ~ state, data = data_counties)
+summary(anova_model_Bachelor)
+#group by to get state level mean
+state_means_bachelor <- data_counties %>%
+  group_by(state) %>%
+  summarize(bachelor_degree_numbers = mean(bachelor_degree_numbers_2016_2020, na.rm = TRUE))
+#bar chart to look at distribution of state level bachelor number 
+ggplot(state_means_bachelor, aes(x = state, y = bachelor_degree_numbers )) +
+  geom_col(fill = "skyblue") +
+  labs(title = "Mean Income by State",
+       x = "State",
+       y = " bachelor degree numbers") +
+  theme_minimal()
+```
+
+
+
+```{r}
+anova_model_Associate <- aov(associate_degree_numbers_2016_2020 ~ state, data = data_counties)
+summary(anova_model_Associate)
+#group by to get state level mean 
+state_means_associate <- data_counties %>%
+  group_by(state) %>%
+  summarize(associate_degree_numbers = mean(associate_degree_numbers_2016_2020, na.rm = TRUE))
+#bar chart to look at distribution of state level bachelor number 
+ggplot(state_means_associate, aes(x = state, y = associate_degree_numbers )) +
+  geom_col(fill = "skyblue") +
+  labs(title = "Mean Income by State",
+       x = "State",
+       y = " associate degree numbers") +
+  theme_minimal()
+```
+
 
 ```{r  Chi-squares}
 #In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states

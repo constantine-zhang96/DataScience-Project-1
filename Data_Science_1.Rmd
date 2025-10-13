@@ -16,11 +16,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
-<<<<<<< HEAD
-options(scipen = 999, digits = 3) 
-=======
-options(scientific=T, digits = 3,scipen = 999) 
->>>>>>> 2b8d385b3cbde474d3aecb1f523d883d3e7a5da2
+options(scientific=T, digits = 3,scipen = 999)
 ```
 
 ```{r library, include = FALSE}
@@ -35,6 +31,8 @@ library(kableExtra)
 data_counties <- read.csv("introdata_merged_counties.csv")
 data_counties %>% drop_na()
 ```
+
+# Preview data set
 
 ```{r preview data}
 tmp <- head(data_counties, 5)
@@ -52,9 +50,35 @@ kable(tmp, caption = "Table 1. First 5 rows of counties data",
   kableExtra::scroll_box(width = "100%", height = "300px")
 ```
 
+# Summary data set
+
 ```{r data set summary}
 summary(data_counties)
 ```
+
+```{r Per Capita Personal Income Distribution by State (2020)}
+
+data_counties_filtered <- data_counties %>%
+  group_by(state) %>%
+  mutate(median_income_state = median(per_capita_personal_income_2020, na.rm = TRUE)) %>%
+  ungroup() %>%
+  filter(state %in% unique(.$state)[1:15]) 
+
+ggplot(data_counties_filtered, aes(x = reorder(state, per_capita_personal_income_2020, FUN = median), 
+                                   y = per_capita_personal_income_2020, 
+                                   fill = state)) +
+  geom_boxplot() +
+  coord_flip() + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    title = "Per Capita Personal Income Distribution by State (2020)",
+    x = "State",
+    y = "Per Capita Personal Income (2020)"
+  )
+```
+
+The box plot for "Per Capita Personal Income Distribution by State (2020)" provides a summary assessment of county level economic differences within the sampled states. The visualization focuses on the top 15 states, which were selected to ensure the clarity and readability of the detailed comparisons. The analysis of central tendency indicates clear economic tiers: Massachusetts (MA) exhibits the highest median per capita income, placing it alongside New Jersey (NJ) and Maryland (MD) in the most affluent group. Conversely, states like Tennessee (TN) display a distribution concentrated at the lower end of the income scale. Colorado (CO) and Ohio (OH) present the widest boxes, signifying the greatest income disparity in income across their counties. Finally, the extreme high outliers observed in New York (NY) and California (CA) highlight the substantial concentration of wealth in a limited number of exceptional counties that significantly influence state averages.
 
 ```{r}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
@@ -77,7 +101,7 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 ```
 
-```{r scatter plot after exclude extrem value}
+```{r scatter plot after exclude extreme value}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
   geom_point() +
   theme_minimal() +
@@ -105,12 +129,19 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 ```
 
+# Identify the extreme value
+
+To determine the extreme values, we exclude value that is more than 5 standard deviation away.
 ```{r exclude extreme value}
-# find an metrics for determine extreme values, we exclude extreme value that is more than 5 # standard deviation away
 quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
 quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
 
 ```
+- For Bachelor degree from 2015-2019: 95% of counties are ≤ 112,684; the top ~5% are > 112,684.
+
+- For Associate degree from 2015-2019: 95% of counties are ≤ 93,890; the top ~5% are > 93,890.
+
+# Calculate the 95% CI
 
 ```{r  finding Confidence Intervals for income, degree, population}
 per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
@@ -178,42 +209,59 @@ The limited overlap across years indicates a statistically meaningful upward shi
 
 - ***Under 5 overall share***: The overall share under age 5 is `r scales::percent(share5, accuracy = 0.01)`, with a 95% CI of `r scales::percent(share5_ci_95[1], accuracy = 0.01)` to `r scales::percent(share5_ci_95[2], accuracy = 0.01)`.
 
-```{r  T-test to compare mean of income and degree between counties}
-#In this section, we will conduct annova test to test the null hypothesis of difference in mean of income and degree across states
+# ANOVA test
+
+In this section, we will conduct ANOVA test to test the null hypothesis of difference in mean of income and degree across state.
+
+**Question: Do average per-capita personal incomes (2020) differ across states?**
+
+***Model and sample***
+
+We ran a one-way ANOVA with state as a categorical factor and county-level per-capita income as the outcome. This tests whether between-state differences in means are larger than within-state variation across counties.
+```{r  T-test to compare mean of income}
 data_counties$state <- as.factor(data_counties$state)
 anova_model_Income <- aov(per_capita_personal_income_2020 ~ state, data = data_counties)
 summary(anova_model_Income)
-#group by to get state level mean
+
 state_means <- data_counties %>%
   group_by(state) %>%
   summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
-#bar chart to look at distribution of state level mean income 
+
 ggplot(state_means, aes(x = state, y = mean_income)) +
   geom_col(fill = "skyblue") +
-  labs(title = "Mean Income by State",
+  labs(title = "Mean Income by State in 2020",
        x = "State",
        y = "Mean Income") +
   theme_minimal()
 ```
-This result is statistically significant at even 1% level. That imply there is a difference in average income between states at 1% level.  
+
+***Result***
+
+This result is statistically significant at even 1% level. We reject the null that all state means are equal; there is strong evidence that average county income differs by state at 1% level.  
+
+**Question: Do mean county bachelor’s degree shares differ across states?**
 
 ```{r}
 anova_model_Bachelor <- aov(bachelor_degree_numbers_2016_2020 ~ state, data = data_counties)
 summary(anova_model_Bachelor)
-#group by to get state level mean
+
 state_means_bachelor <- data_counties %>%
   group_by(state) %>%
   summarize(bachelor_degree_numbers = mean(bachelor_degree_numbers_2016_2020, na.rm = TRUE))
-#bar chart to look at distribution of state level bachelor number 
+
 ggplot(state_means_bachelor, aes(x = state, y = bachelor_degree_numbers )) +
   geom_col(fill = "skyblue") +
-  labs(title = "Mean Income by State",
+  labs(title = "Number of bachelor degree from 2016-2020 by State",
        x = "State",
-       y = " bachelor degree numbers") +
+       y = " Bachelor degree numbers") +
   theme_minimal()
 ```
 
+***Result***:
 
+This result is statistically significant at even the 1% level. We reject the null that all state means are equal; there is strong evidence that average county bachelor’s attainment differs by state at the 1% level.
+
+**Question. Do mean county associate degree shares differ across states?**
 
 ```{r}
 anova_model_Associate <- aov(associate_degree_numbers_2016_2020 ~ state, data = data_counties)
@@ -225,42 +273,19 @@ state_means_associate <- data_counties %>%
 #bar chart to look at distribution of state level bachelor number 
 ggplot(state_means_associate, aes(x = state, y = associate_degree_numbers )) +
   geom_col(fill = "skyblue") +
-  labs(title = "Mean Income by State",
+  labs(title = "Number of Associate degree from 2016-2020 by State",
        x = "State",
-       y = " associate degree numbers") +
+       y = " Associate degree numbers") +
   theme_minimal()
 ```
 
+***Result***:
+
+This result is statistically significant at even the 1% level. We reject the null that all state means are equal; there is strong evidence that average county associate-degree attainment differs by state at the 1% level.
+
+# Chi-squares Test
 
 ```{r  Chi-squares}
 #In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states
 ```
-
-```{r Per Capita Personal Income Distribution by State (2020)}
-
-data_counties_filtered <- data_counties %>%
-  group_by(state) %>%
-  mutate(median_income_state = median(per_capita_personal_income_2020, na.rm = TRUE)) %>%
-  ungroup() %>%
-  filter(state %in% unique(.$state)[1:15]) 
-
-ggplot(data_counties_filtered, aes(x = reorder(state, per_capita_personal_income_2020, FUN = median), 
-                                   y = per_capita_personal_income_2020, 
-                                   fill = state)) +
-  geom_boxplot() +
-  coord_flip() + 
-  theme_minimal() +
-  theme(legend.position = "none") +
-  labs(
-    title = "Per Capita Personal Income Distribution by State (2020)",
-    x = "State",
-    y = "Per Capita Personal Income (2020)"
-  )
-```
-
-The box plot for "Per Capita Personal Income Distribution by State (2020)" provides a summary assessment of county level economic differences within the sampled states. The visualization focuses on the top 15 states, which were selected to ensure the clarity and readability of the detailed comparisons. The analysis of central tendency indicates clear economic tiers: Massachusetts (MA) exhibits the highest median per capita income, placing it alongside New Jersey (NJ) and Maryland (MD) in the most affluent group. Conversely, states like Tennessee (TN) display a distribution concentrated at the lower end of the income scale. Colorado (CO) and Ohio (OH) present the widest boxes, signifying the greatest income disparity in income across their counties. Finally, the extreme high outliers observed in New York (NY) and California (CA) highlight the substantial concentration of wealth in a limited number of exceptional counties that significantly influence state averages.
-
-
-
-
 

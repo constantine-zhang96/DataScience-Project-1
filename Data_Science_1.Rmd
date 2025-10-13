@@ -16,7 +16,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
-options(scientific=T, digits = 3) 
+options(scipen = 999, digits = 3) 
 ```
 
 ```{r library, include = FALSE}
@@ -33,15 +33,19 @@ data_counties %>% drop_na()
 ```
 
 ```{r preview data}
-kable(
-  head(data_counties, 5),
-  caption = "Table 1. First 5 rows of counties data",
-  format = "html",
-  align = "c"
-) |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = FALSE, position = "center") |>
-  scroll_box(width = "100%", height = "300px")
+tmp <- head(data_counties, 5)
+names(tmp) <- c("County FIPS","State","County",
+                "Per-Capita Income (2019)","Per-Capita Income (2020)","Per-Capita Income (2021)",
+                "Associate Degrees (Count, 2016–2020)","Bachelor’s Degrees (Count, 2016–2020)",
+                "Associate Degrees (%)","Bachelor’s Degrees (%)",
+                "Population (Est.)","Population (Male)","Population (Female)",
+                "Under 5 (Count)","Age 18+ (Count)","Age 65+ (Count)","Median Age")
+
+kable(tmp, caption = "Table 1. First 5 rows of counties data",
+      format = "html", align = "c") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                            full_width = FALSE, position = "center") |>
+  kableExtra::scroll_box(width = "100%", height = "300px")
 ```
 
 ```{r data set summary}
@@ -118,7 +122,56 @@ bachelor_ci_95 <- bachelor_ttest$conf.int
 
 associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
 associate_ci_95 <- associate_ttest$conf.int
+
+population_ttest <- t.test(x=data_counties$POPESTIMATE, conf.level=0.95)
+population_ci_95 <- population_ttest$conf.int
 ```
+
+```{r finding Confidence interval for age}
+median_age_ttest <- t.test(x=data_counties$MEDIAN_AGE_TOT, conf.level=0.95)
+median_age_ci_95 <- median_age_ttest$conf.int
+
+z        <- qnorm(0.975)
+sum_pop <- sum(data_counties$POPESTIMATE,na.rm = TRUE)
+share5 <- sum(data_counties$UNDER5_TOT,na.rm = TRUE) / sum_pop
+se5 <- sqrt(share5 * (1 - share5) / sum_pop)
+share5_ci_95 <- c(share5 - z*se5, share5 + z*se5)
+share5_ci_95_pct <- share5_ci_95 * 100
+
+share65 <- sum(data_counties$AGE65PLUS_TOT,na.rm = TRUE) / sum_pop
+se65 <- sqrt(share65 * (1 - share65) / sum_pop)
+share65_ci_95 <- c(share65 - z*se65, share65 + z*se65)
+share65_ci_95_pct <- share65_ci_95 * 100
+```
+
+**Per-capita income (2019–2021)**:
+
+- ***The mean county per-capita income in 2019*** is estimated to lie between `r scales::comma(round(per_capita_2019_ci_95[1], 2))` and `r scales::comma(round(per_capita_2019_ci_95[2], 2))` (95% CI).
+
+- ***For 2020***, the 95% CI is `r scales::comma(round(per_capita_2020_ci_95[1], 2))` to `r scales::comma(round(per_capita_2020_ci_95[2], 2))`
+
+- ***For 2021***, it is `r scales::comma(round(per_capita_2021_ci_95[1], 2))` to `r scales::comma(round(per_capita_2021_ci_95[2], 2))`.
+
+The limited overlap across years indicates a statistically meaningful upward shift in the average county income.
+
+**Population (mean per county)**:
+
+- ***The mean county population*** is between `r scales::comma(round(population_ci_95[1], 2))` and `r scales::comma(round(population_ci_95[2], 2))` (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
+
+**Education**:
+
+- ***Bachelor’s share*** (mean across counties): `r if (exists("bachelor_ci_95")) paste0("[", round(bachelor_ci_95[1],2), ", ", round(bachelor_ci_95[2],2), "]")`.
+
+- ***Associate share *** (mean across counties): `r if (exists("associate_ci_95")) paste0("[", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), "]")`.
+
+**Population composition (person-weighted) by age**:
+
+- ***Median age*** (mean of county medians): The mean of county median ages lies between `r round(median_age_ci_95[1], 2)` and `r round(median_age_ci_95[2], 2)` (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
+
+
+- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r scales::percent(share65, accuracy = 0.01)`, with a 95% CI of `r scales::percent(share65_ci_95[1], accuracy = 0.01)` to `r scales::percent(share65_ci_95[2], accuracy = 0.01)`. This is a population-weighted estimate (ratio of totals), so each person counts equally.
+
+- ***Under 5 overall share***: The overall share under age 5 is `r scales::percent(share5, accuracy = 0.01)`, with a 95% CI of `r scales::percent(share5_ci_95[1], accuracy = 0.01)` to `r scales::percent(share5_ci_95[2], accuracy = 0.01)`.
 
 ```{r  T-test to compare mean of income and degree between counties}
 #In this section, we will conduct annova test to test the null hypothesis of difference in mean of income and degree across states

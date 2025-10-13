@@ -289,3 +289,36 @@ This result is statistically significant at even the 1% level. We reject the nul
 #In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states
 ```
 
+
+```{r Density Distribution of Per Capita Personal Income (2020)}
+ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
+  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
+  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Per Capita Personal Income (2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Per Capita Personal Income (2020)",
+    y = "Density"
+  )
+```
+
+
+```{r Density Distribution of Bachelors Degree Percentage}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
+  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
+  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with a Bachelor's Degree",
+    y = "Density"
+  )
+```
+
+Income is highly skewed to the right, with most counties clustered at low income levels. This happens because a few very wealthy counties drag the mean income significantly higher than the mode. The Bachelor's degree percentage shows a similar trend, peaking sharply around 20%, meaning fewer counties have very high attainment. Although this educational skew is less extreme than the income skew, it also inflates the mean Bachelor's percentage.
+
+

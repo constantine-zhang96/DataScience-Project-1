@@ -58,27 +58,41 @@ summary(data_counties)
 
 ```{r Per Capita Personal Income Distribution by State (2020)}
 
-data_counties_filtered <- data_counties %>%
+state_income <- data_counties %>%
   group_by(state) %>%
-  mutate(median_income_state = median(per_capita_personal_income_2020, na.rm = TRUE)) %>%
-  ungroup() %>%
-  filter(state %in% unique(.$state)[1:15]) 
+  summarize(median_income = median(per_capita_personal_income_2020, na.rm = TRUE))
 
-ggplot(data_counties_filtered, aes(x = reorder(state, per_capita_personal_income_2020, FUN = median), 
-                                   y = per_capita_personal_income_2020, 
-                                   fill = state)) +
+state_income <- state_income %>%
+  mutate(income_group = ntile(median_income, 3))
+
+set.seed(42)  
+sample_states <- state_income %>%
+  group_by(income_group) %>%
+  slice_sample(n = 5) %>%
+  pull(state)
+
+
+data_counties_filtered <- data_counties %>%
+  filter(state %in% sample_states)
+
+
+ggplot(data_counties_filtered, 
+       aes(x = reorder(state, per_capita_personal_income_2020, FUN = median),
+           y = per_capita_personal_income_2020,
+           fill = state)) +
   geom_boxplot() +
-  coord_flip() + 
+  coord_flip() +
   theme_minimal() +
   theme(legend.position = "none") +
   labs(
-    title = "Per Capita Personal Income Distribution by State (2020)",
+    title = "Per Capita Personal Income Distribution by Selected States (2020)",
+    subtitle = "Balanced sample across low, medium, and high income states",
     x = "State",
     y = "Per Capita Personal Income (2020)"
   )
 ```
 
-The box plot for "Per Capita Personal Income Distribution by State (2020)" provides a summary assessment of county level economic differences within the sampled states. The visualization focuses on the top 15 states, which were selected to ensure the clarity and readability of the detailed comparisons. The analysis of central tendency indicates clear economic tiers: Massachusetts (MA) exhibits the highest median per capita income, placing it alongside New Jersey (NJ) and Maryland (MD) in the most affluent group. Conversely, states like Tennessee (TN) display a distribution concentrated at the lower end of the income scale. Colorado (CO) and Ohio (OH) present the widest boxes, signifying the greatest income disparity in income across their counties. Finally, the extreme high outliers observed in New York (NY) and California (CA) highlight the substantial concentration of wealth in a limited number of exceptional counties that significantly influence state averages.
+The box plot displays the distribution of Per Capita Personal Income at the county level for 15 states chosen as a balanced sample across low, medium and high state-level incomes. The sorting is done by the median income of the counties within each state, placing Georgia (GA) at the bottom and North Dakota (ND) at the top. The colored boxes represent the central 50% of county incomes, with Colorado (CO) showing the greatest range. The outliers, representing specific counties with incomes far outside the typical range for that state, such as extremely wealthy county in Colorado. 
 
 ```{r}
 ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
@@ -350,9 +364,70 @@ This result is statistically significant at even the 1% level. We reject the nul
 # Chi-squares Test
 
 ```{r  Chi-squares}
-#In this section, we will conduct annova test to test the null hypothesis of relationship between income and degree/ gender/ age across states
+
+data_counties <- data_counties %>%
+  mutate(income_cat = case_when(
+      per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.33, na.rm = TRUE) ~ "Low",
+      per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.67, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"),
+      bachelor_cat = case_when(
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.33, na.rm = TRUE) ~ "Low",
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.67, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"),
+      associate_cat = case_when(
+      associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.33, na.rm = TRUE) ~ "Low",
+      associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.67, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"))
+
+data_counties$income_cat <- factor(data_counties$income_cat, 
+  levels = c("Low", "Medium", "High"))
+
+data_counties$bachelor_cat <- factor(data_counties$bachelor_cat, 
+  levels = c("Low", "Medium", "High"))
+
+data_counties$associate_cat <- factor(data_counties$associate_cat, 
+  levels = c("Low", "Medium", "High"))
+
+
 ```
 
+
+### Personal Income vs. Bachelor degree 
+```{r}
+# Chi-square test: 
+chisq_income_bachelor <- chisq.test(table(data_counties$income_cat, data_counties$bachelor_cat))
+chisq_income_bachelor
+
+ggplot(data_counties, aes(x = income_cat, fill = bachelor_cat)) +
+  geom_bar(position = "fill") +
+  theme_minimal() +
+  labs(title = "Bachelor's Degree Distribution by Income Category",
+       x = "Income Category (2020)",
+       y = "Proportion of Counties",
+       fill = "Bachelor's Degree (%)") +
+  scale_y_continuous(labels = scales::percent)
+```
+
+
+### Personal Income vs. Associate degree 
+```{r}
+chisq_income_associate <- chisq.test(table(data_counties$income_cat, data_counties$associate_cat))
+chisq_income_associate
+
+# Visualize income vs. associate's degree relationship
+ggplot(data_counties, aes(x = income_cat, fill = associate_cat)) +
+  geom_bar(position = "fill") +
+  theme_minimal() +
+  labs(title = "Associate's Degree Distribution by Income Category",
+       x = "Income Category (2020)",
+       y = "Proportion of Counties",
+       fill = "Associate's Degree (%)") +
+  scale_y_continuous(labels = scales::percent)
+```
+
+The χ2 tests verify that there is a strong correlation between a county's educational profile and economic health (p<0.001 for both). There is a statistically proven correlation between income and both the bachelor's and associate's degree categories.
+
+The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1246) than an associate's degree (χ2≈151), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
 
 ```{r Density Distribution of Per Capita Personal Income (2020)}
 ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
@@ -383,6 +458,7 @@ ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
   )
 ```
 
-Income is highly skewed to the right, with most counties clustered at low income levels. This happens because a few very wealthy counties drag the mean income significantly higher than the mode. The Bachelor's degree percentage shows a similar trend, peaking sharply around 20%, meaning fewer counties have very high attainment. Although this educational skew is less extreme than the income skew, it also inflates the mean Bachelor's percentage.
+The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the mode. A similar pattern can be seen in the bachelor's degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. 
+
 
 

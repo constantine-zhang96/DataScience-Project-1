@@ -227,12 +227,15 @@ state_means <- data_counties %>%
   group_by(state) %>%
   summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
 
-ggplot(state_means, aes(x = state, y = mean_income)) +
+ggplot(state_means, aes(x = reorder(state, mean_income), y = mean_income)) +
   geom_col(fill = "skyblue") +
   labs(title = "Mean Income by State in 2020",
        x = "State",
        y = "Mean Income") +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, size = 8)
+  )
 ```
 
 ***Result***
@@ -249,12 +252,13 @@ state_means_bachelor <- data_counties %>%
   group_by(state) %>%
   summarize(bachelor_degree_numbers = mean(bachelor_degree_numbers_2016_2020, na.rm = TRUE))
 
-ggplot(state_means_bachelor, aes(x = state, y = bachelor_degree_numbers )) +
+ggplot(state_means_bachelor, aes(x = reorder(state, bachelor_degree_numbers), y = bachelor_degree_numbers)) +
   geom_col(fill = "skyblue") +
   labs(title = "Number of bachelor degree from 2016-2020 by State",
        x = "State",
        y = " Bachelor degree numbers") +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
 ```
 
 ***Result***:
@@ -271,12 +275,13 @@ state_means_associate <- data_counties %>%
   group_by(state) %>%
   summarize(associate_degree_numbers = mean(associate_degree_numbers_2016_2020, na.rm = TRUE))
 #bar chart to look at distribution of state level bachelor number 
-ggplot(state_means_associate, aes(x = state, y = associate_degree_numbers )) +
+ggplot(state_means_associate, aes(x = reorder(state, associate_degree_numbers), y = associate_degree_numbers)) +
   geom_col(fill = "skyblue") +
   labs(title = "Number of Associate degree from 2016-2020 by State",
        x = "State",
        y = " Associate degree numbers") +
-  theme_minimal()
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
 ```
 
 ***Result***:

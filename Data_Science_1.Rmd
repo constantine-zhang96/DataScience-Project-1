@@ -129,9 +129,68 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 ```
 
+# Normality test
+
+**Objective***
+Assess whether the distribution of per-capita personal income (2019–2021) is approximately Normal, and decide how to proceed for hypothesis testing method for the next parts
+
+**Method**
+
+We evaluated normality using: quantile–quantile (QQ) plots against the Normal distribution
+
+**Plotting**
+
+```{r qq plot income 2019}
+income2019_qqplots <- qqnorm(data_counties$per_capita_personal_income_2019,
+                         main = "QQ Plot of Personal Income Per Capita in 2019",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$per_capita_personal_income_2019, 
+       col = 2,
+       lwd = 2)
+```
+
+```{r qqlot income 2020}
+income2020_qqplots <- qqnorm(data_counties$per_capita_personal_income_2020,
+                         main = "QQ Plot of Personal Income Per Capita in 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$per_capita_personal_income_2020, 
+       col = 2,
+       lwd = 2)
+
+```
+
+```{r qqlot income 2021}
+income2021_qqplots <- qqnorm(data_counties$per_capita_personal_income_2021,
+                         main = "QQ Plot of Personal Income Per Capita in 2021",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$per_capita_personal_income_2021, 
+       col = 2,
+       lwd = 2)
+
+```
+
+**Result Analysis**
+
+Across all three years, the QQ plots display a clear right-skew with a heavy upper tail: points track the 45° line in the center but bend sharply upward in the right tail, indicating many high-income counties/outliers.
+
+The raw income variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
+
+- potential heteroskedasticity across groups,
+
+- inflated influence of extreme values,
+
 # Identify the extreme value
 
-To determine the extreme values, we exclude value that is more than 5 standard deviation away.
+To determine the extreme values to smoothen the distribution of income, we exclude value that is more than 5 standard deviation away.
 ```{r exclude extreme value}
 quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
 quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)

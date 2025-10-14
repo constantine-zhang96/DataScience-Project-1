@@ -85,8 +85,8 @@ ggplot(data_counties_filtered,
   theme_minimal() +
   theme(legend.position = "none") +
   labs(
-    title = "Per Capita Personal Income Distribution by Selected States (2020)",
-    subtitle = "Balanced sample across low, medium, and high income states",
+    title = "Per Capita Personal Income Distribution by States (2020)",
+    
     x = "State",
     y = "Per Capita Personal Income (2020)"
   )
@@ -459,6 +459,7 @@ ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
 ```
 
 The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the mode. A similar pattern can be seen in the bachelor's degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. 
+
 
 
 

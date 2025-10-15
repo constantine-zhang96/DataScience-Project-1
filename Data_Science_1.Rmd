@@ -55,6 +55,13 @@ kable(tmp, caption = "Table 1. First 5 rows of counties data",
 ```{r data set summary}
 summary(data_counties)
 ```
+```{r exclude extreme value}
+quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
+quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
+```
+- For Bachelor degree from 2015-2019: 95% of counties are ≤ 112,684; the top ~5% are > 112,684.
+
+- For Associate degree from 2015-2019: 95% of counties are ≤ 93,890; the top ~5% are > 93,890.
 
 ```{r Per Capita Personal Income Distribution by State (2020)}
 
@@ -131,7 +138,7 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 # Normality test
 
-**Objective***
+**Objective**
 Assess whether the distribution of per-capita personal income (2019–2021) is approximately Normal, and decide how to proceed for hypothesis testing method for the next parts
 
 **Method**
@@ -190,15 +197,67 @@ The raw income variable is non-normal. This does not invalidate parametric proce
 
 # Identify the extreme value
 
-To determine the extreme values to smoothen the distribution of income, we exclude value that is more than 5 standard deviation away.
-```{r exclude extreme value}
-quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
-quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
+To determine the extreme values to smoothen the distribution of income, we exclude extreme value using the IQR method to define the upper and lower bound and and flagged any value outside the bound.
+
+```{r extreme value}
+df_long <- data_counties %>%
+  select(state, county_FIPS, county,
+         per_capita_personal_income_2019,
+         per_capita_personal_income_2020,
+         per_capita_personal_income_2021) %>%
+  pivot_longer(
+    cols = starts_with("per_capita_personal_income_"),
+    names_to = "year",
+    values_to = "income"
+  ) %>%
+  mutate(year = as.integer(sub(".*_(\\d{4})$", "\\1", year)))
+
+df_long_no_out <- df_long %>%
+  group_by(year) %>%
+  mutate(
+    Q1 = quantile(income, 0.25, na.rm = TRUE),
+    Q3 = quantile(income, 0.75, na.rm = TRUE),
+    IQRv = Q3 - Q1,
+    lo = Q1 - 1.5 * IQRv,
+    hi = Q3 + 1.5 * IQRv
+  ) %>%
+  ungroup() %>%
+  filter(income >= lo, income <= hi) %>%
+  select(-Q1, -Q3, -IQRv, -lo, -hi)
+
+income_no_outlier <- head(df_long_no_out, 5)
+names(income_no_outlier) <- c("County FIPS","State","County", "Year",
+                "Per-Capita Income")
+
+kable(income_no_outlier, caption = "Table 1. First 5 rows of Per-capita counties data (Removed Ouliers)",
+      format = "html", align = "c") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                            full_width = FALSE, position = "center") |>
+  kableExtra::scroll_box(width = "100%", height = "300px")
 
 ```
-- For Bachelor degree from 2015-2019: 95% of counties are ≤ 112,684; the top ~5% are > 112,684.
 
-- For Associate degree from 2015-2019: 95% of counties are ≤ 93,890; the top ~5% are > 93,890.
+```{r plot the new qqplot}
+p_hist <- ggplot(df_long_no_out, aes(x = income, fill = factor(year))) +
+  geom_histogram(bins = 30, color = "white", alpha = 0.95) +
+  facet_wrap(~ year, scales = "free_y") +
+  scale_fill_manual(values = c("2019" = "#1f77b4",
+                               "2020" = "#2ca02c",
+                               "2021" = "#ff7f0e")) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title = "Per-capita Personal Income (IQR outliers removed)",
+       x = "Income", y = "Count", fill = "Year") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_hist
+```
+
+For per-capita personal income in 2019–2021, the extreme values are predominantly on the high side (right tail), which is consistent with the QQ plots (heavy upper tail).
+
+After removing IQR outliers, the histograms by year become noticeably more symmetric and centered, indicating that a small number of very high-income counties were driving the skew
+
+These extreme values likely reflect genuine high-income counties rather than data entry errors (they are consistent across years and align with known distributional features of income).
 
 # Calculate the 95% CI
 
@@ -277,6 +336,7 @@ In this section, we will conduct ANOVA test to test the null hypothesis of diffe
 ***Model and sample***
 
 We ran a one-way ANOVA with state as a categorical factor and county-level per-capita income as the outcome. This tests whether between-state differences in means are larger than within-state variation across counties.
+
 ```{r  T-test to compare mean of income}
 data_counties$state <- as.factor(data_counties$state)
 anova_model_Income <- aov(per_capita_personal_income_2020 ~ state, data = data_counties)

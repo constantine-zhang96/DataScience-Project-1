@@ -1,4 +1,4 @@
-county_FIPS,state,county,per_capita_personal_income_2019,per_capita_personal_income_2020,per_capita_personal_income_2021,associate_degree_numbers_2016_2020,bachelor_degree_numbers_2016_2020,associate_degree_percentage_2016_2020,bachelor_degree_percentage_2015_2019,POPESTIMATE,POPEST_MALE,POPEST_FEM,UNDER5_TOT,AGE18PLUS_TOT,AGE65PLUS_TOT,MEDIAN_AGE_TOT
+county_FIPS,state,county,per_capita_personal_income_2019,per_capita_personal_income_2020,per_capita_personal_income_2021,associate_degree_numbers_2016_2020,bachelor_degree_numbers_2016_2020,associate_degree_percentage_2016_2020,bachelor_degree_percentage_2016_2019,POPESTIMATE,POPEST_MALE,POPEST_FEM,UNDER5_TOT,AGE18PLUS_TOT,AGE65PLUS_TOT,MEDIAN_AGE_TOT
 51013,VA,"Arlington, VA",97629,100687,107603,19573,132394,11.21,75.84,239807,120585,119222,11135,197391,30045,35.6
 35028,NM,"Los Alamos, NM",72366,75949,81306,2766,9098,20.54,67.56,19675,10398,9277,882,15622,3615,40.2
 8013,CO,"Boulder, CO",79698,83173,89593,45834,135876,21.24,62.97,330262,166314,163948,12235,275486,57890,38.1

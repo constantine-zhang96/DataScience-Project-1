@@ -1,17 +1,20 @@
 ---
 title: "Data Science Project 1"
-date: "`r Sys.Date()`"
-author: 
-  - "Constantine Zhang"
-  - "Ha Nguyen"
-  - "Kemal Ege Sural"
-output: 
+author:
+- Constantine Zhang
+- Ha Nguyen
+- Kemal Ege Sural
+date: '`r Sys.Date()`'
+output:
   html_document:
     code_folding: hide
     number_sections: false
-    toc: yes
+    toc: true
     toc_depth: 3
-    toc_float: yes
+    toc_float: true
+  pdf_document:
+    toc: true
+    toc_depth: '3'
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
@@ -130,8 +133,8 @@ qqline(data_counties$per_capita_personal_income_2020,
 
 ```
 ```{r qqlot bachelor 2020}
-income2020_qqplots <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020,
-                         main = "QQ Plot of Personal Income Per Capita in 2020",
+bachelor2020_qqplots <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020,
+                         main = "QQ Plot of Bachelor degree number 2016 - 2020",
                          xlab = "Theoretical Quantiles",
                          ylab = "Sample Quantiles",
                          plot.it = TRUE,
@@ -142,8 +145,8 @@ qqline(data_counties$bachelor_degree_numbers_2016_2020,
 
 ```
 ```{r qqlot associate 2020}
-income2020_qqplots <- qqnorm(data_counties$associate_degree_numbers_2016_2020,
-                         main = "QQ Plot of Personal Income Per Capita in 2020",
+associate2020_qqplots <- qqnorm(data_counties$associate_degree_numbers_2016_2020,
+                         main = "QQ Plot of Associate degree number 2016 - 2020",
                          xlab = "Theoretical Quantiles",
                          ylab = "Sample Quantiles",
                          plot.it = TRUE,
@@ -151,7 +154,6 @@ income2020_qqplots <- qqnorm(data_counties$associate_degree_numbers_2016_2020,
 qqline(data_counties$associate_degree_numbers_2016_2020, 
        col = 2,
        lwd = 2)
-
 ```
 
 
@@ -177,9 +179,15 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 ```
 **Result Analysis**
 
-Across all three years, the QQ plots display a clear right-skew with a heavy upper tail: points track the 45° line in the center but bend sharply upward in the right tail, indicating many high-income counties/outliers.
+All three QQ plots scream non-normal with a strong right tail. That’s expected at county level.
 
-The raw income variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
+What the plots show
+
+Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
+
+Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
+
+The raw  variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
 
 - potential heteroskedasticity across groups,
 
@@ -295,6 +303,7 @@ p_side_by_side <- p2020 +
 
 p_side_by_side
 ```
+
 ```{r distribution for bachelor}
 
 p_bach <- ggplot(data_counties, 
@@ -314,7 +323,7 @@ p_bach <- ggplot(data_counties,
 # Display the plot
 p_bach
 
-p_bach <- ggplot(data_counties, 
+p_bach_2 <- ggplot(data_counties, 
                  aes(x = bachelor_degree_numbers_2016_2020_No_Outliers)) +
   geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
   scale_x_continuous(labels = comma) +
@@ -330,14 +339,14 @@ p_bach <- ggplot(data_counties,
   )
 
 # Display the plot
-p_bach
+p_bach_2
 
 
 ```
 
 
-```{r distribution for bachelor}
-p_bach <- ggplot(data_counties, 
+```{r distribution for associate}
+p_associate <- ggplot(data_counties, 
                  aes(x = associate_degree_numbers_2016_2020)) +
   geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
   scale_x_continuous(labels = comma,) +
@@ -353,17 +362,17 @@ p_bach <- ggplot(data_counties,
   )
 
 # Display the plot
-p_bach
+p_associate
 
 
 
-p_bach <- ggplot(data_counties, 
+p_associate_2 <- ggplot(data_counties, 
                  aes(x = associate_degree_numbers_2016_2020_No_Outliers)) +
   geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
   scale_x_continuous(labels = comma) +
   labs(
-    title = "Assocaite Degree Numbers (2016-2020, No Outliers)",
-    x = "Number of Bachelor Degrees",
+    title = "Associate Degree Numbers (2016-2020, No Outliers)",
+    x = "Number of Associate Degrees",
     y = "Count"
   ) +
   theme_minimal(base_size = 13) +
@@ -371,20 +380,14 @@ p_bach <- ggplot(data_counties,
     plot.title = element_text(face = "bold", hjust = 0.5),
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
-
 # Display the plot
-p_bach
-
-
-
-
-
+p_associate_2
 ```
 
 
 
 ```{r new qqplot 2020}
-income2021_qqplots_NoOut <- qqnorm(data_counties$No_Outlier_per_capita_personal_income_2020,
+income2020_qqplots_NoOut <- qqnorm(data_counties$No_Outlier_per_capita_personal_income_2020,
                          main = "QQ Plot of Personal Income Per Capita in 2020, with no Outliers",
                          xlab = "Theoretical Quantiles",
                          ylab = "Sample Quantiles",
@@ -394,8 +397,9 @@ qqline(data_counties$No_Outlier_per_capita_personal_income_2020,
        col = 2,
        lwd = 2)
 ```
-```{r new qqplot associate 2020}
-income2021_qqplots_NoOut <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020_No_Outliers,
+
+```{r new qqplot bachelor 2020}
+bachelor2020_qqplots_NoOut <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020_No_Outliers,
                          main = "QQ Plot of bachelor degree number in 2020, with no Outliers",
                          xlab = "Theoretical Quantiles",
                          ylab = "Sample Quantiles",
@@ -405,8 +409,9 @@ qqline(data_counties$bachelor_degree_numbers_2016_2020_No_Outliers,
        col = 2,
        lwd = 2)
 ```
+
 ```{r new qqplot associate 2020}
-income2021_qqplots_NoOut <- qqnorm(data_counties$associate_degree_numbers_2016_2020_No_Outliers,
+associate2020_qqplots_NoOut <- qqnorm(data_counties$associate_degree_numbers_2016_2020_No_Outliers,
                          main = "QQ Plot of associate degree number in 2020, with no Outliers",
                          xlab = "Theoretical Quantiles",
                          ylab = "Sample Quantiles",
@@ -416,9 +421,6 @@ qqline(data_counties$associate_degree_numbers_2016_2020_No_Outliers,
        col = 2,
        lwd = 2)
 ```
-
-
-
 
 For per-capita personal income in 2019–2021, the extreme values are predominantly on the high side (right tail), which is consistent with the QQ plots (heavy upper tail).
 
@@ -462,7 +464,7 @@ per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
 per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
 per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
 
-bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2015_2019, conf.level=0.95)
+bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2016_2019, conf.level=0.95)
 bachelor_ci_95 <- bachelor_ttest$conf.int
 
 associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
@@ -560,7 +562,7 @@ ggplot(state_means, aes(x = reorder(state, mean_income), y = mean_income)) +
 
 ggplot(state_means_No_Outliers, aes(x = reorder(state, mean_income), y = mean_income)) +
   geom_col(fill = "skyblue") +
-  labs(title = "Number of bachelor degree from 2016-2020 by State with no Outliers",
+  labs(title = "Mean income without Outliers",
        x = "State",
        y = " Bachelor degree numbers") +
   theme_minimal() +
@@ -599,7 +601,7 @@ ggplot(state_means_bachelor, aes(x = reorder(state, bachelor_degree_numbers), y 
 
 ggplot(state_means_bachelor_No_Outliers, aes(x = reorder(state, bachelor_degree_numbers), y = bachelor_degree_numbers)) +
   geom_col(fill = "skyblue") +
-  labs(title = "Number of bachelor degree from 2016-2020 by State with no Outliers",
+  labs(title = "Number of bachelor degree from 2016-2020 by State without Outliers",
        x = "State",
        y = " Bachelor degree numbers") +
   theme_minimal() +
@@ -640,7 +642,7 @@ ggplot(state_means_associate, aes(x = reorder(state, associate_degree_numbers), 
 
 ggplot(state_means_associate_No_Outliers, aes(x = reorder(state, associate_degree_numbers), y = associate_degree_numbers)) +
   geom_col(fill = "skyblue") +
-  labs(title = "Number of Associate degree from 2016-2020 by State with no outliers",
+  labs(title = "Number of Associate degree from 2016-2020 by State without outliers",
        x = "State",
        y = " Associate degree numbers") +
   theme_minimal() + 
@@ -661,8 +663,8 @@ data_counties <- data_counties %>%
       per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.67, na.rm = TRUE) ~ "Medium",
       TRUE ~ "High"),
       bachelor_cat = case_when(
-      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.33, na.rm = TRUE) ~ "Low",
-      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.67, na.rm = TRUE) ~ "Medium",
+      bachelor_degree_percentage_2016_2019 < quantile(bachelor_degree_percentage_2016_2019, 0.33, na.rm = TRUE) ~ "Low",
+      bachelor_degree_percentage_2016_2019 < quantile(bachelor_degree_percentage_2016_2019, 0.67, na.rm = TRUE) ~ "Medium",
       TRUE ~ "High"),
       associate_cat = case_when(
       associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.33, na.rm = TRUE) ~ "Low",
@@ -735,9 +737,9 @@ ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
 
 
 ```{r Density Distribution of Bachelors Degree Percentage}
-ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2016_2019)) +
   geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
-  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
+  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2016_2019, na.rm = T)), 
              color = "red", linetype = "dashed", size = 1) +
   theme_minimal() +
   labs(
@@ -750,6 +752,84 @@ ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
 
 The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the mode. A similar pattern can be seen in the bachelor's degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. 
 
+### Personal Income vs. Gender
 
+**Hypotheses**
 
+$H_{0}$: (independence): Gender composition is the same in every income quartile
 
+$H_{1}$: Gender composition differs for at least one income quartile.
+
+**Method**
+
+- Break income quartiles from `per_capita_personal_income_2020` from Q1 to Q4.
+
+- For each quartile, summed people by gender using `POPEST_MALE` and `POPEST_FEM`.
+
+- Ran a Pearson χ² test of independence
+
+**Method**:
+
+```{r income vs gender}
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, c(0, .25, .5, .75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Q1 (lowest)","Q2","Q3","Q4 (highest)"))
+
+ct_gender_income <- rbind(
+  Male   = tapply(data_counties$POPEST_MALE,   inc_q, sum, na.rm = TRUE),
+  Female = tapply(data_counties$POPEST_FEM,    inc_q, sum, na.rm = TRUE)
+)
+
+chi_gi <- chisq.test(ct_gender_income)
+chi_gi
+```
+
+**Conclusion** 
+
+Due to extremely small p-value, we ***reject $H_{0}$***. Gender and income quartile are not independent: the gender mix varies across income quartiles.
+
+**Male/Female share by income quartiles**
+
+```{r table of income share by gender}
+quartiles <- colnames(ct_gender_income)
+
+male   <- ct_gender_income["Male",   quartiles]
+female <- ct_gender_income["Female", quartiles]
+total  <- male + female
+
+tbl_gender_income <- data.frame(
+  `Income Quartile`  = quartiles,
+  `Male Share (%)`   = round(100 * male   / total, 2),
+  `Female Share (%)` = round(100 * female / total, 2),
+  check.names = FALSE
+)
+
+knitr::kable(
+  tbl_gender_income,
+  row.names = FALSE,
+  align = c("l","r","r"),
+  caption = "Male/Female shares by income quartile (per-capita income 2020)."
+)
+```
+
+### Personal Income vs. Median age
+
+**Hypotheses**
+
+$H_{0}$: (independence): Income-quartile and median-age–quartile are independent (county counts spread the same)
+
+$H_{1}$: Median age differs for at least one income quartile.
+
+```{r income vs age}
+age_brks <- quantile(data_counties$MEDIAN_AGE_TOT, c(0, .25, .5, .75, 1), na.rm = TRUE)
+age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = TRUE,
+             labels = c("Q1","Q2","Q3","Q4"))
+
+ct_income_age <- table(IncomeQuartile = inc_q, AgeQuartile = age_q)
+
+chi_age <- chisq.test(ct_income_age)
+chi_age
+```
+**Conclusion** 
+
+We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles.

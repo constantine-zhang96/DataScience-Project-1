@@ -520,7 +520,15 @@ ggplot(data_counties, aes(x = log(associate_degree_percentage_2016_2020Test), y 
 We draw the scatter plot again after remove extreme value from our per capita income columns and take natural log of both income and education data to smooth the distribution and demonstrate the percentage change relationship between two variables. We can still see a clearly upward sloped correlation between bachelor degree percentage and per capita income while the relationship between associate degree percentage and per capita income remain unclear. However, it is showing a slight upward slope on the scatterplot.
 
 
-# Chi-squares Test
+# SMART Questions and Test
+
+## SMART Questions:
+
+
+
+## Chi-squares Test:
+
+
 
 ```{r  Chi-squares}
 

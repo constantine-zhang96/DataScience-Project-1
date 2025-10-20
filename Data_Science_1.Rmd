@@ -520,13 +520,64 @@ ggplot(data_counties, aes(x = log(associate_degree_percentage_2016_2020Test), y 
 We draw the scatter plot again after remove extreme value from our per capita income columns and take natural log of both income and education data to smooth the distribution and demonstrate the percentage change relationship between two variables. We can still see a clearly upward sloped correlation between bachelor degree percentage and per capita income while the relationship between associate degree percentage and per capita income remain unclear. However, it is showing a slight upward slope on the scatterplot.
 
 
+
+```{r Density Distribution of Per Capita Personal Income (2020)}
+ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
+  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
+  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Per Capita Personal Income (2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Per Capita Personal Income (2020)",
+    y = "Density"
+  )
+```
+
+
+```{r Density Distribution of Bachelors Degree Percentage}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
+  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
+  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with a Bachelor's Degree",
+    y = "Density"
+  )
+```
+
+```{r Density Distribution of Associate Degree Percentage}
+
+ggplot(data_counties, aes(x = associate_degree_percentage_2016_2020)) +
+  
+  geom_density(fill = "orange", alpha = 0.6, color = "darkorange") +
+  
+  geom_vline(aes(xintercept = mean(associate_degree_percentage_2016_2020, na.rm = TRUE)), 
+             color = "red", linetype = "dashed", size = 1) +
+  
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Associate Degree Percentage (2016-2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with an Associate's Degree",
+    y = "Density"
+  )
+```
+
+
+The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the median. A similar pattern can be seen in the bachelors degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. In contrast, the Associate's degree distribution is structurally different; it peaks later and more centrally, proving it represents a broader and more stable base of educational attainment across the U.S. counties.
+
 # SMART Questions and Test
 
-## SMART Questions:
-
+### Is there a statistically relationship between a county's economic income group and its college degree attainment group?
 
 
 ## Chi-squares Test:
+The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the 2016-2020 degree percentages to create three approximately equal-sized categories for each variable: Low, Medium, and High. This approach ensured that about one-third of all counties fell into each group. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.
 
 
 
@@ -596,36 +647,6 @@ The χ2 tests verify that there is a strong correlation between a county's educa
 
 The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1246) than an associate's degree (χ2≈151), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
 
-```{r Density Distribution of Per Capita Personal Income (2020)}
-ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
-  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
-  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
-             color = "red", linetype = "dashed", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Density Distribution of Per Capita Personal Income (2020)",
-    subtitle = "The dashed red line indicates the mean.",
-    x = "Per Capita Personal Income (2020)",
-    y = "Density"
-  )
-```
-
-
-```{r Density Distribution of Bachelors Degree Percentage}
-ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
-  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
-  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
-             color = "red", linetype = "dashed", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
-    subtitle = "The dashed red line indicates the mean.",
-    x = "Percentage of Population with a Bachelor's Degree",
-    y = "Density"
-  )
-```
-
-The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the mode. A similar pattern can be seen in the bachelor's degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. 
 
 ### Personal Income vs. Gender
 
@@ -659,11 +680,36 @@ chi_gi <- chisq.test(ct_gender_income)
 chi_gi
 ```
 
+
 **Conclusion** 
 
 Due to extremely small p-value, we ***reject $H_{0}$***. Gender and income quartile are not independent: the gender mix varies across income quartiles.
 
 **Male/Female share by income quartiles**
+
+```{r income vs gender graph}
+prop_ct <- prop.table(ct_gender_income, margin = 2)  
+
+par(mar = c(5, 5, 4, 8))  
+
+bar_x <- barplot(
+  prop_ct,
+  beside = TRUE,
+  col = c("steelblue", "pink"),
+  main = "Population by Gender and Income Quartile",
+  xlab = "Income Quartile",
+  ylab = "Proportion",
+  ylim = c(0, max(prop_ct)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x) + 1,  
+  y = max(prop_ct),    
+  legend = c("Male", "Female"),
+  fill = c("steelblue", "pink"),
+  xpd = TRUE)
+
+```
 
 ```{r table of income share by gender}
 quartiles <- colnames(ct_gender_income)
@@ -685,6 +731,7 @@ knitr::kable(
   align = c("l","r","r"),
   caption = "Male/Female shares by income quartile (per-capita income 2020)."
 )
+
 ```
 
 ### Personal Income vs. Median age
@@ -696,6 +743,12 @@ $H_{0}$: (independence): Income-quartile and median-age–quartile are independe
 $H_{1}$: Median age differs for at least one income quartile.
 
 ```{r income vs age}
+
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, c(0, .25, .5, .75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Q1 (lowest)","Q2","Q3","Q4 (highest)"))
+
+
 age_brks <- quantile(data_counties$MEDIAN_AGE_TOT, c(0, .25, .5, .75, 1), na.rm = TRUE)
 age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = TRUE,
              labels = c("Q1","Q2","Q3","Q4"))
@@ -703,8 +756,33 @@ age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = T
 ct_income_age <- table(IncomeQuartile = inc_q, AgeQuartile = age_q)
 
 chi_age <- chisq.test(ct_income_age)
-chi_age
+
+prop_ct_age <- prop.table(ct_income_age, margin = 1)
+
+par(mar = c(5, 5, 4, 8))
+bar_x_age <- barplot(
+  t(prop_ct_age),
+  beside = TRUE,
+  col = c("lightblue", "steelblue", "blue", "navy"),
+  main = "Age Quartile Distribution by Income Quartile",
+  xlab = "Income Quartile",
+  ylab = "Proportion",
+  ylim = c(0, max(prop_ct_age)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x_age) + 0.5,
+  y = max(prop_ct_age),
+  legend = c("Youngest",
+             "Young Adults",
+             "Middle-aged",
+             "Oldest"),,
+  fill = c("lightblue", "steelblue", "blue", "navy"),
+  xpd = TRUE)
+
 ```
 **Conclusion** 
 
-We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles.
+We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles. 
+
+The graph shows a straightforward connection between age and how much money people make. As income levels go up, the share of the oldest group gets bigger, making them the largest group in the top-earning bracket (Q4). The opposite is true for younger people; they are most common in the lowest-earning group (Q1) and their share of the population tends to shrink in the higher-income brackets.

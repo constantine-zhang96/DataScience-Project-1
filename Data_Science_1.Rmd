@@ -62,10 +62,12 @@ kable(tmp, caption = "Table 1. First 5 rows of counties data",
                             full_width = FALSE, position = "center") |>
   kableExtra::scroll_box(width = "100%", height = "300px")
 ```
-## Check the name for our dataframe columns.
+
 ```{r}
 names(data_counties)
 ```
+
+The provided dataset offers detailed information for U.S. counties in three main categories. First, Economic Data tracks the average income for each person in the county (Per-Capita Personal Income) across three specific years: 2019, 2020 and 2021. Second, Education Data focuses on the attainment of residents, listing both the raw counts and calculated percentages of people with an Associate Degree and a Bachelor’s Degree. Third, Demographic Data covers basic population facts, including the total population (POPESTIMATE), the number of people in different age groups (like 18+ or 65+) and the median age, with each county being uniquely identified by its FIPS code. This allows the project to compare how a county's level of education relates to its economic health.
 
 
 ```{r data set summary}

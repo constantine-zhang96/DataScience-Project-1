@@ -803,13 +803,15 @@ $H_{1}$: Gender composition differs for at least one income quartile.
 **Method**:
 
 ```{r income vs gender}
-inc_brks <- quantile(data_counties$per_capita_personal_income_2020, c(0, .25, .5, .75, 1), na.rm = TRUE)
-inc_q <- cut(data_counties$per_capita_personal_income_2020, breaks = inc_brks, include.lowest = TRUE,
-             labels = c("Q1 (lowest)","Q2","Q3","Q4 (highest)"))
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, 
+                    c(0, 0.25, 0.75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, 
+             breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Low","Medium","High"))
 
 ct_gender_income <- rbind(
-  Male   = tapply(data_counties$POPEST_MALE,   inc_q, sum, na.rm = TRUE),
-  Female = tapply(data_counties$POPEST_FEM,    inc_q, sum, na.rm = TRUE)
+  Male   = tapply(data_counties$POPEST_MALE, inc_q, sum, na.rm = TRUE),
+  Female = tapply(data_counties$POPEST_FEM, inc_q, sum, na.rm = TRUE)
 )
 
 chi_gi <- chisq.test(ct_gender_income)
@@ -833,8 +835,8 @@ bar_x <- barplot(
   beside = TRUE,
   col = c("steelblue", "pink"),
   main = "Population by Gender and Income Quartile",
-  xlab = "Income Quartile",
-  ylab = "Proportion",
+  xlab = "Income Rank",
+  ylab = "Gender Proportion",
   ylim = c(0, max(prop_ct)*1.1),
   las = 1)
 
@@ -855,7 +857,7 @@ female <- ct_gender_income["Female", quartiles]
 total  <- male + female
 
 tbl_gender_income <- data.frame(
-  `Income Quartile`  = quartiles,
+  `Income Rank`  = quartiles,
   `Male Share (%)`   = round(100 * male   / total, 2),
   `Female Share (%)` = round(100 * female / total, 2),
   check.names = FALSE

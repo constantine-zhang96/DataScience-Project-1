@@ -8,7 +8,7 @@ date: '`r Sys.Date()`'
 output:
   html_document:
     code_folding: hide
-    number_sections: false
+    number_sections: true
     toc: true
     toc_depth: 3
     toc_float: true
@@ -17,12 +17,25 @@ output:
     toc_depth: '3'
 ---
 
-# Lietrature Review
+# Literature Review
 
+1. Education and Lifetime Earnings in the United States (Tamborini et al., 2015): Lifetime earnings are significantly higher for those with a bachelor’s degree or higher compared to those with only a high school diploma. After adjustment, bachelor’s degree holders earn ~43% (men) and ~51% (women) more over a lifetime compared to high school graduates, less than previous widely cited estimates.
 
+2. College Attainment, Income Inequality, and Economic Security (Hershbein, Kearney, Pardue, 2020): Increasing rates of bachelor’s and associate degree attainment would substantially improve economic security for lower-income individuals and reduce poverty rates.
 
+3. How Education Impacted Income and Earnings From 2004 to 2024 (U.S. Census Bureau, 2025): Over the past two decades, higher educational attainment continued to drive higher median incomes and lower poverty rates. The income gap by educational attainment remains robust; degree attainment is strongly predictive of higher earnings.
 
-# Setup
+# Motivation for our data science project
+
+The literature establishes a strong, persistent link between degree attainment and higher income, but also surfaces limitations in existing analyses:
+
+- Many studies use national or cohort-level data; our project’s county-level, which can reveal local disparities and trends that may not be visible in the research.
+
+- Most prior work analyzes bachelor’s vs. high school, whereas ours focuses on the difference between associate degrees and bachelor degree.
+
+Our project is thus motivated by both academic gaps and policy relevance: providing geographically specific insights on the relationship between educational attainment and income, at the same time analysis on the demographics information such as population age structure, and gender breakdowns.
+
+# Summary and preview data set
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
@@ -47,8 +60,15 @@ data_counties <- read.csv("introdata_merged_counties.csv")
 data_counties %>% drop_na()
 ```
 
+## Data source
 
-# Summary and preview data set
+For our analysis, our group merged dataset from 2 sources:
+
+1. Kaggle - Per Capita Income by County 2021 vs. Education: in which Data source for United States per capita personal income is from county from U.S. Bureau of Economic Analysis and data source for education level is from U.S. Department of Agriculture
+
+2. US Cencus Bureau: County Population Totals: 2020-2024, retrieved demographic information in year 2020.
+
+## Dataset overview
 
 ```{r preview data}
 tmp <- head(data_counties, 5)
@@ -66,12 +86,57 @@ kable(tmp, caption = "Table 1. First 5 rows of counties data",
   kableExtra::scroll_box(width = "100%", height = "300px")
 ```
 
-```{r}
-names(data_counties)
+The provided dataset offers detailed information for U.S. counties in three main categories:
+
+- First, Economic Data records the average income for each person in the county (Per-Capita Personal Income) across three specific years: 2019, 2020 and 2021.
+
+- Second, Education Data tells us about the degree attainment records of residents with counts and calculated percentages of people with an Associate Degree and a Bachelor’s Degree in multi-year aggregates (2016–2020). 
+
+- Third, Demographic Data includes information about population, including the total population, gender, the number of people in different age groups and the median age in year 2020.
+
+Each county being uniquely identified by its FIPS code. This allows the project to compare how a county's level of education relates to its economic health.
+
+## Variables details
+
+```{r variables table}
+descriptions <- c(
+  county_FIPS      = "5-digit county FIPS code (string, zero-padded)",
+  POPESTIMATE      = "Total resident population (2020 estimate)",
+  POPEST_MALE      = "Male population (2020 estimate)",
+  POPEST_FEM       = "Female population (2020 estimate)",
+  UNDER5_TOT       = "Population under age 5 (2020)",
+  AGE513_TOT       = "Population ages 5–13 (2020)",
+  AGE1417_TOT      = "Population ages 14–17 (2020)",
+  AGE18PLUS_TOT    = "Population ages 18+ (2020)",
+  AGE65PLUS_TOT    = "Population ages 65+ (2020)",
+  MEDIAN_AGE_TOT   = "Median age (years, 2020)"
+  # Add more: name = "Meaning"
+)
+
+codebook <- enframe(descriptions, name = "Column", value = "Meaning") |>
+  mutate(Column = factor(Column, levels = names(descriptions))) |>
+  arrange(Column)
+
+kbl(codebook, caption = "Variables Codebook", align = c("l","l"), booktabs = TRUE) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped","hover","condensed")) |>
+  column_spec(1, monospace = TRUE) |>
+  column_spec(2, width = "30em") |>
+  scroll_box(width = "100%", height = "300px")
 ```
 
-The provided dataset offers detailed information for U.S. counties in three main categories. First, Economic Data tracks the average income for each person in the county (Per-Capita Personal Income) across three specific years: 2019, 2020 and 2021. Second, Education Data focuses on the attainment of residents, listing both the raw counts and calculated percentages of people with an Associate Degree and a Bachelor’s Degree. Third, Demographic Data covers basic population facts, including the total population (POPESTIMATE), the number of people in different age groups (like 18+ or 65+) and the median age, with each county being uniquely identified by its FIPS code. This allows the project to compare how a county's level of education relates to its economic health.
+## Limitations
 
+Our merged county-level dataset has several limitations:
+
+- Coverage is incomplete: The dataset includes 3,006 counties and does not include Louisiana (LA) and District of Columbia (DC) (49 state codes present), so results aren’t fully nationwide.
+
+- Uneven time alignment: Education comes from 5-year windows estimates( 2015–2019, 2016–2020), while other measures reflect single-year snapshots. Variables don’t represent the same period.
+
+- Standardization: Key identifiers - county_FIPS appear with 4 digits instead of 5, which can cause merge errors with other sources.
+
+- Ecological fallacy & weighting: County-level aggregation can mislead individual-level inference; t-tests treats counties as independent and identically distributed and ignore size differences. Model-based methods covered later in the course is more suitable and preferable.
+
+## Summary statistics
 
 ```{r data set summary}
 summary(data_counties)
@@ -94,8 +159,11 @@ sample_states <- state_income %>%
 
 data_counties_filtered <- data_counties %>%
   filter(state %in% sample_states)
+```
 
+## Per Capita Personal Income at the county level visualization
 
+```{r box plot}
 ggplot(data_counties_filtered, 
        aes(x = reorder(state, per_capita_personal_income_2020, FUN = median),
            y = per_capita_personal_income_2020,
@@ -126,59 +194,7 @@ data_counties$associate_degree_percentage_2016_2020Test <- data_counties$associa
 ```
 We calculated the percentage of bachelor and associate degree percentage in terms of working age population for 2016 to 2020. We define working age population as person who's age is between 18 and 65. 
 
-<<<<<<< HEAD
-```
-```{r qqlot associate 2020}
-associate2020_qqplots <- qqnorm(data_counties$associate_degree_numbers_2016_2020,
-                         main = "QQ Plot of Associate degree number 2016 - 2020",
-                         xlab = "Theoretical Quantiles",
-                         ylab = "Sample Quantiles",
-                         plot.it = TRUE,
-                         datax = FALSE)
-qqline(data_counties$associate_degree_numbers_2016_2020, 
-       col = 2,
-       lwd = 2)
-```
-
-
-```{r}
-ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020, y = per_capita_personal_income_2020 )) +
-  geom_point() +
-  theme_minimal() +
-  labs(
-    title = "Bachelor’s Degree Numbers vs. Per Capita Personal Income (2020) Scatter Plot",
-    x = "Number of Bachelor's Degree 2016-2020",
-    y = "Personal Income Per Capita (2020)"
-  ) 
-
-ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capita_personal_income_2020 )) +
-  geom_point() +
-  theme_minimal() +
-  labs(
-    title = "Associate’s Degree Numbers vs. Per Capita Personal Income (2020) Scatter Plot",
-    x = "Number of Associate's Degree 2016-2020",
-    y = "Personal Income Per Capita (2020)"
-  ) 
-
-```
-**Result Analysis**
-
-All three QQ plots scream non-normal with a strong right tail. That’s expected at county level.
-
-- Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
-
-- Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
-
-The raw  variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
-
-- potential heteroskedasticity across groups,
-
-- inflated influence of extreme values,
-
-# Identify the extreme value
-=======
 ## Remove extreme value (1.5 IQR method)
->>>>>>> ec0dd7bb45b874566af651c7b2441e749ff49124
 
 To determine the extreme values to smoothen the distribution of income, we exclude extreme value using the IQR method to define the upper and lower bound and and flagged any value outside the bound.
 

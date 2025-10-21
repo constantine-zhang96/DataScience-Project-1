@@ -39,7 +39,7 @@ Our project is thus motivated by both academic gaps and policy relevance: provid
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
-options(scientific=T, digits = 4,scipen = 999)
+options(scientific=T, digits = 3,scipen = 999)
 ```
 
 ```{r library, include = FALSE}
@@ -53,6 +53,10 @@ library(patchwork)
 library(tibble)
 library(gt)
 library(webshot2)
+library(gridExtra)
+library(grid)
+library(ragg)
+library(gtable)
 ```
 
 ```{r data import and cleaning na value, include = FALSE}
@@ -132,15 +136,34 @@ Our merged county-level dataset has several limitations:
 
 - Uneven time alignment: Education comes from 5-year windows estimates( 2015–2019, 2016–2020), while other measures reflect single-year snapshots. Variables don’t represent the same period.
 
-- Standardization: Key identifiers - county_FIPS appear with 4 digits instead of 5, which can cause merge errors with other sources.
-
 - Ecological fallacy & weighting: County-level aggregation can mislead individual-level inference; t-tests treats counties as independent and identically distributed and ignore size differences. Model-based methods covered later in the course is more suitable and preferable.
 
-## Summary statistics
+## Summary Statistics
 
-```{r data set summary}
-summary(data_counties)
+### County summary statistics
+
+```{r categorical summary}
+data_counties$county_FIPS <- as.factor(data_counties$county_FIPS)
+
+state_info <- c("county_FIPS","state","county")
+
+summary(data_counties[ ,state_info])
 ```
+For state/county indicator data (`county_FIPS`,`state`,`county`), as they are categorical variables, so summary can’t compute min/median/mean, etc. Therefore the table gives the result for Length/Class/Mode or Count.
+
+### Income summary statistics
+```{r income summary}
+income <- c("per_capita_personal_income_2019","per_capita_personal_income_2020","per_capita_personal_income_2021")
+summary(data_counties[ , income])
+```
+The summary statistics for per capita personal income from 2019 to 2021 reveal a clear upward trend across U.S. counties. The median income rose from 43,516 in 2019 to 50,514 in 2021, an increase of roughly 16% over two years, while the mean followed a similar pattern, increasing from 45,947 to 53,308. 
+
+The fact that the mean consistently exceeds the median indicates a right-skewed distribution, where a small number of high-income counties pull the average up. The interquartile range (IQR) also widened gradually from 12,228 in 2019 to 13,683 in 2021, suggesting slightly increasing income dispersion over time. 
+
+Notably, the maximum values are extremely high (ranging from 278,682 to 318,297), which is likely due to a few outlier counties with unusually high per capita incomes. These outliers could distort the mean.
+
+Overall, the summary reflects broad income growth at both lower and upper ends, but with persistent inequality and a few extreme values influencing the distribution.
+
 ```{r Per Capita Personal Income Distribution by State (2020)}
 
 state_income <- data_counties %>%
@@ -161,8 +184,6 @@ data_counties_filtered <- data_counties %>%
   filter(state %in% sample_states)
 ```
 
-## Per Capita Personal Income at the county level visualization
-
 ```{r box plot}
 ggplot(data_counties_filtered, 
        aes(x = reorder(state, per_capita_personal_income_2020, FUN = median),
@@ -181,10 +202,9 @@ ggplot(data_counties_filtered,
 ```
 The box plot displays the distribution of Per Capita Personal Income at the county level for 15 states chosen as a balanced sample across low, medium and high state-level incomes. The sorting is done by the median income of the counties within each state, placing Georgia (GA) at the bottom and North Dakota (ND) at the top. The colored boxes represent the central 50% of county incomes, with Colorado (CO) showing the greatest range. The outliers, representing specific counties with incomes far outside the typical range for that state, such as extremely wealthy county in Colorado. 
 
+### Degree summary statistics
 
-# Data cleaning
-
-## Calculate Percentage for education level
+#### Calculate Percentage for education level
 
 ```{r calculate bachelor and associate degree percentage for working age population in 2020}
 data_counties$bachelor_degree_percentage_2016_2020 <- data_counties$bachelor_degree_numbers_2016_2020/(data_counties$AGE18PLUS_TOT - data_counties$AGE65PLUS_TOT)  * 100
@@ -193,6 +213,200 @@ data_counties$associate_degree_percentage_2016_2020Test <- data_counties$associa
 
 ```
 We calculated the percentage of bachelor and associate degree percentage in terms of working age population for 2016 to 2020. We define working age population as person who's age is between 18 and 65. 
+
+```{r degree summary}
+degree <- c("bachelor_degree_percentage_2016_2020","associate_degree_percentage_2016_2020")
+summary(data_counties[ ,degree])
+```
+For bachelor’s degrees (2016–2020), the median share of adults with at least a bachelor’s degree is 24.7%, and the mean is slightly higher at 26.7%, indicating a mild right skew with some counties having much higher educational attainment. The upper quartile reaches 31.7%, and the maximum is as high as 82.4%, showing substantial inequality in bachelor attainment across counties. 
+
+For associate degrees (2016–2020), the median is 31.17%, mean 31.22%, and the distribution is more centered with a slightly narrower gap between mean and median. The maximum of 81.82% is quite extreme and likely represents specialized or small counties with unusual degree structures. Overall, associate degree attainment is generally more common than bachelor’s attainment, but both show wide dispersion.
+
+### Population summary statistics
+Regrading the original dataset, raw counts mostly reflect county size; shares reflect population structure. We create shares (percentages) of male and female for each county so we can compare counties fairly.
+
+```{r population summary}
+data_counties$MALE_PCT <- ifelse(data_counties$POPESTIMATE > 0,
+                                 100 * data_counties$POPEST_MALE / data_counties$POPESTIMATE,
+                                 NA)
+data_counties$FEMALE_PCT <- ifelse(data_counties$POPESTIMATE > 0,
+                                 100 * data_counties$POPEST_FEM / data_counties$POPESTIMATE,
+                                 NA)
+population <- c("POPESTIMATE","MALE_PCT","FEMALE_PCT")
+summary(data_counties[ , population])
+```
+Population estimates also vary widely across counties. The median total population is about 25,326, whereas the mean is much higher at 105,332, indicating a highly right-skewed distribution dominated by a few large counties. The maximum population exceeds 10 million, while the smallest counties have only 65 residents. 
+
+By composition, the gender split is essentially balanced: the median county is approximate 50.1% male and 49.9% female, with a tight IQR (male approximately 49.4–51.0%; female approximately 49.0–50.6%), so most counties cluster near 50/50.
+
+### Age structure summary statistics
+The original dataset has population ranging from 5-17, 18 to 65, 65 to above, we want to see the percentage, and we identify as 18-65 as working class in the labor force
+```{r age structure summary}
+under18_cnt <- rowSums(
+  cbind(data_counties$UNDER5_TOT,
+        data_counties$AGE513_TOT,
+        data_counties$AGE1417_TOT),
+  na.rm = TRUE
+)
+
+data_counties$UNDER18_PCT <- ifelse(
+  data_counties$POPESTIMATE > 0,
+  100 * under18_cnt / data_counties$POPESTIMATE,
+  NA_real_
+)
+data_counties$AGE18_65_PCT <- ifelse(data_counties$POPESTIMATE    > 0,
+                                 100 * (data_counties$AGE18PLUS_TOT - data_counties$AGE65PLUS_TOT)/ data_counties$POPESTIMATE,
+                                 NA)
+
+data_counties$AGE65_PLUS_PCT <- ifelse(data_counties$POPESTIMATE    > 0,
+                                 100 * data_counties$AGE65PLUS_TOT/ data_counties$POPESTIMATE,
+                                 NA)
+age_structure <- c("UNDER18_PCT","AGE18_65_PCT","AGE65_PLUS_PCT","MEDIAN_AGE_TOT")
+summary(data_counties[ , age_structure])
+```
+### Overall Interpretation
+
+Together, these summaries reveal strong heterogeneity in U.S. county characteristics. 
+
+Population and age distributions are highly skewed by a small number of large counties, while educational attainment is uneven, with most counties below 30% bachelor attainment but some with very high shares. 
+
+The age structure reflects an aging population overall, with significant variation by county. 
+
+# Establishing SMART Question
+
+Within-county comparisons by gender/age/degree aren’t possible with our data because we don’t have income broken out by sub-groups (for example, male income vs female income). We only have one per-capita income per county plus composition variables (gender shares, age shares, education shares).
+
+1. Is there a relationship between a county's economic income group and its college degree attainment group?
+
+2. Is there a relationship between a county's economic income group and its gender distribution?
+
+3. Is there a relationship between a county's economic income group and its age-structure?
+
+# 95% Confidence Interval
+
+## Calculate the 95% CI
+
+```{r  finding Confidence Intervals for income, degree, population}
+per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
+per_capita_2019_ci_95 <- per_capita_2019_ttest$conf.int
+
+per_capita_2020_ttest <- t.test(x=data_counties$per_capita_personal_income_2020, conf.level=0.95)
+per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
+
+per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
+per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
+
+bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2016_2020, conf.level=0.95)
+bachelor_ci_95 <- bachelor_ttest$conf.int
+
+associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
+associate_ci_95 <- associate_ttest$conf.int
+
+population_ttest <- t.test(x=data_counties$POPESTIMATE, conf.level=0.95)
+population_ci_95 <- population_ttest$conf.int
+```
+
+```{r finding Confidence interval for age}
+median_age_ttest <- t.test(x=data_counties$MEDIAN_AGE_TOT, conf.level=0.95)
+median_age_ci_95 <- median_age_ttest$conf.int
+
+share_under18_ttest <- t.test(x=data_counties$UNDER18_PCT, conf.level=0.95)
+share_under18_ci_95 <- share_under18_ttest$conf.int
+share_under18 <- unname(share_under18_ttest$estimate)
+
+share_1865_ttest <- t.test(x=data_counties$AGE18_65_PCT, conf.level=0.95)
+share_1865_ci_95 <- share_1865_ttest$conf.int
+share_1865 <- unname(share_1865_ttest$estimate) 
+
+share_65_ttest <- t.test(x=data_counties$AGE65_PLUS_PCT, conf.level=0.95)
+share_65_ci_95 <- share_65_ttest$conf.int
+share_65 <- unname(share_65_ttest$estimate) 
+```
+
+```{r make into table, include = FALSE}
+num1  <- function(x) as.numeric(unname(x))[1]
+
+ci_tbl <- tibble::tribble(
+  ~Item,                             ~Time,       ~Mean,                                   ~`CI Low`,                         ~`CI High`,                                             ~Method,
+  "Per-capita personal income",      "2019",      num1(per_capita_2019_ttest$estimate),    num1(per_capita_2019_ci_95[1]),   num1(per_capita_2019_ci_95[2]),   "t-interval (mean)",
+  "Per-capita personal income",      "2020",      num1(per_capita_2020_ttest$estimate),    num1(per_capita_2020_ci_95[1]),   num1(per_capita_2020_ci_95[2]),   "t-interval (mean)",
+  "Per-capita personal income",      "2021",      num1(per_capita_2021_ttest$estimate),    num1(per_capita_2021_ci_95[1]),   num1(per_capita_2021_ci_95[2]),   "t-interval (mean)",
+  "Bachelor degree share (%)",       "2016–2020", num1(bachelor_ttest$estimate),           num1(bachelor_ci_95[1]),          num1(bachelor_ci_95[2]),          "t-interval (mean)",
+  "Associate degree share (%)",      "2016–2020", num1(associate_ttest$estimate),          num1(associate_ci_95[1]),         num1(associate_ci_95[2]),        "t-interval (mean)",
+  "County population",               "2020",      num1(population_ttest$estimate),         num1(population_ci_95[1]),        num1(population_ci_95[2]),       "t-interval (mean)",
+  "Median age (years)",              "2020",      num1(median_age_ttest$estimate),         num1(median_age_ci_95[1]),        num1(median_age_ci_95[2]),        "t-interval (mean)",
+  "Population share <18 (%)",        "2020",      num1(share_under18),                  num1(share_under18_ci_95[1]),           num1(share_under18_ci_95[2]),                        "t-interval (mean)",
+  "Population share 65+ (%)",        "2020",      num1(share_65),                    num1(share_65_ci_95[1]),             num1(share_65_ci_95[2]),             "t-interval (mean)",
+  "Population share 18–65 (%)",      "2020",      num1(share_1865),                  num1(share_1865_ci_95[1]),           num1(share_1865_ci_95[2]),           "t-interval (mean)"
+) |>
+  dplyr::mutate(
+    Mean     = round(as.numeric(Mean), 2),
+    `CI Low` = round(as.numeric(`CI Low`), 4),
+    `CI High`= round(as.numeric(`CI High`), 4)
+)    
+
+row_fills <- rep(c("#FFFFFF", "#F7F7F7"), length.out = nrow(ci_tbl))
+
+tbl_grob <- tableGrob(
+  ci_tbl,
+  rows = NULL,
+  theme = ttheme_default(
+    base_size = 10,
+    core = list(
+      bg_params = list(fill = row_fills, col = "grey70", lwd = 0.6),  # <- cell borders
+      fg_params = list(cex = 0.9)                                     # text
+    ),
+    colhead = list(
+      bg_params = list(fill = "#EDEDED", col = "grey70", lwd = 0.8),  # header borders
+      fg_params = list(fontface = "bold")
+    )
+  )
+)
+
+h_px <- 140 + 36 * nrow(ci_tbl) 
+w_px <- 1200
+
+agg_png("ci_summary_table.png", width = w_px, height = h_px, res = 150)
+grid.newpage(); grid.draw(tbl_grob)
+dev.off()
+
+grid.newpage(); grid.draw(tbl_grob)
+```
+
+**Per-capita income (2019–2021)**:
+
+- ***The mean county per-capita income in 2019*** is estimated to lie between (`r scales::comma(round(per_capita_2019_ci_95[1], 2))` , `r scales::comma(round(per_capita_2019_ci_95[2], 2))`).
+
+- ***For 2020***, the 95% CI is (`r scales::comma(round(per_capita_2020_ci_95[1], 2))` , `r scales::comma(round(per_capita_2020_ci_95[2], 2))`)
+
+- ***For 2021***, it is (`r scales::comma(round(per_capita_2021_ci_95[1], 2))` , `r scales::comma(round(per_capita_2021_ci_95[2], 2))`).
+
+The limited overlap across years indicates a statistically meaningful upward shift in the average county income.
+
+**Population (mean per county)**:
+
+- ***The mean county population*** is between (`r scales::comma(round(population_ci_95[1], 2))` , `r scales::comma(round(population_ci_95[2], 2))`) (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
+
+**Education**:
+
+- ***Bachelor’s share***: `r if (exists("bachelor_ci_95")) paste0("(", round(bachelor_ci_95[1],2), ", ", round(bachelor_ci_95[2],2), ")")`.
+
+- ***Associate share ***: `r if (exists("associate_ci_95")) paste0("(", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), ")")`.
+
+The associate share exceeding bachelor’s is typical, but the gap is modest—worth checking regional patterns (metro vs rural county)
+
+**Population composition by age**:
+
+- ***Median age***: The mean of county median ages lies between (`r round(median_age_ci_95[1], 2)` , `r round(median_age_ci_95[2], 2)`) (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
+
+
+- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r share_65`%, with a 95% CI of (`r share_65_ci_95[1]` , `r share_65_ci_95[2]`).
+
+- ***Under 18 overall share***: The overall share under age 18 is `r share_under18`%, with a 95% CI of (`r share_under18_ci_95[1]` , `r share_under18_ci_95[2]`).
+
+- ***Working age (18-65) overall share***: The overall share under age 18 is `r share_1865`%, with a 95% CI of (`r share_1865_ci_95[1]` , `r share_1865_ci_95[2]`).
+
+# Data cleaning
 
 ## Remove extreme value (1.5 IQR method)
 
@@ -467,137 +681,6 @@ ggplot(state_means_associate, aes(x = reorder(state, associate_degree_percentage
 
 ```
 
-
-## Calculate the 95% CI
-
-```{r  finding Confidence Intervals for income, degree, population}
-per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
-per_capita_2019_ci_95 <- per_capita_2019_ttest$conf.int
-
-per_capita_2020_ttest <- t.test(x=data_counties$per_capita_personal_income_2020, conf.level=0.95)
-per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
-
-per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
-per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
-
-bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2015_2019, conf.level=0.95)
-bachelor_ci_95 <- bachelor_ttest$conf.int
-
-associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
-associate_ci_95 <- associate_ttest$conf.int
-
-population_ttest <- t.test(x=data_counties$POPESTIMATE, conf.level=0.95)
-population_ci_95 <- population_ttest$conf.int
-```
-
-```{r finding Confidence interval for age}
-median_age_ttest <- t.test(x=data_counties$MEDIAN_AGE_TOT, conf.level=0.95)
-median_age_ci_95 <- median_age_ttest$conf.int
-
-share5 <- data_counties$UNDER5_TOT/data_counties$POPESTIMATE
-share5_population <- sum(data_counties$UNDER5_TOT,na.rm = TRUE)/sum(data_counties$POPESTIMATE,na.rm = TRUE)
-share_5_ttest <- t.test(x=share5, conf.level=0.95)
-share_5_ci_95 <- share_5_ttest$conf.int
-
-share65 <- data_counties$AGE65PLUS_TOT/data_counties$POPESTIMATE
-share65_population <- sum(data_counties$AGE65PLUS_TOT,na.rm = TRUE)/sum(data_counties$POPESTIMATE,na.rm = TRUE)
-share_65_ttest <- t.test(x=share65, conf.level=0.95)
-share_65_ci_95 <- share_65_ttest$conf.int
-```
-
-```{r make into table}
-num1 <- function(x) as.numeric(unname(x))[1]
-
-n_obs <- function(x) sum(!is.na(x))
-
-share5_ci_95_pct  <- share_5_ci_95  * 100
-share65_ci_95_pct <- share_65_ci_95 * 100
-
-ci_tbl <- tibble::tribble(
-  ~Item,                             ~Time,     ~Mean,                                   ~`CI Low`,                 ~`CI High`,                ~`N (base)`,                                           ~Method,
-  "Per-capita personal income",      "2019",    num1(per_capita_2019_ttest$estimate),    num1(per_capita_2019_ci_95[1]), num1(per_capita_2019_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2019), "t-interval (mean)",
-  "Per-capita personal income",      "2020",    num1(per_capita_2020_ttest$estimate),    num1(per_capita_2020_ci_95[1]), num1(per_capita_2020_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2020), "t-interval (mean)",
-  "Per-capita personal income",      "2021",    num1(per_capita_2021_ttest$estimate),    num1(per_capita_2021_ci_95[1]), num1(per_capita_2021_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2021), "t-interval (mean)",
-  "Bachelor degree share",           "2016–2019", num1(bachelor_ttest$estimate),         num1(bachelor_ci_95[1]),        num1(bachelor_ci_95[2]),        n_obs(data_counties$bachelor_degree_percentage_2016_2019), "t-interval (mean)",
-  "Associate degree share",          "2016–2020", num1(associate_ttest$estimate),        num1(associate_ci_95[1]),       num1(associate_ci_95[2]),       n_obs(data_counties$associate_degree_percentage_2016_2020), "t-interval (mean)",
-  "County population",               "2020",    num1(population_ttest$estimate),         num1(population_ci_95[1]),      num1(population_ci_95[2]),      n_obs(data_counties$POPESTIMATE),                       "t-interval (mean)",
-  "Median age (years)",              "2020",    num1(median_age_ttest$estimate),         num1(median_age_ci_95[1]),      num1(median_age_ci_95[2]),      n_obs(data_counties$MEDIAN_AGE_TOT),                    "t-interval (mean)",
-  "Population share under age 5 (%)","2020",    num1(share5 * 100),                      num1(share5_ci_95_pct[1]),      num1(share5_ci_95_pct[2]),      n_obs(data_counties$UNDER5_TOT),                         "t-interval (mean)",
-  "Population share age 65+ (%)",    "2020",    num1(share65 * 100),                     num1(share65_ci_95_pct[1]),     num1(share65_ci_95_pct[2]),     n_obs(data_counties$AGE65PLUS_TOT),                      "t-interval (mean)"
-) |>
-  dplyr::mutate(
-    Mean = round(as.numeric(Mean), 2),
-    `CI Low` = round(as.numeric(`CI Low`), 4),
-    `CI High` = round(as.numeric(`CI High`), 4),
-    `N (base)` = as.integer(`N (base)`)
-  )
-# --- Save as PNG without Chrome/webshot ---
-# install.packages(c("gridExtra","ragg"))
-library(gridExtra)
-library(grid)
-library(ragg)
-library(gtable)
-
-row_fills <- rep(c("#FFFFFF", "#F7F7F7"), length.out = nrow(ci_tbl))
-
-tbl_grob <- tableGrob(
-  ci_tbl,
-  rows = NULL,
-  theme = ttheme_default(
-    base_size = 10,
-    core = list(
-      bg_params = list(fill = row_fills, col = "grey70", lwd = 0.6),  # <- cell borders
-      fg_params = list(cex = 0.9)                                     # text
-    ),
-    colhead = list(
-      bg_params = list(fill = "#EDEDED", col = "grey70", lwd = 0.8),  # header borders
-      fg_params = list(fontface = "bold")
-    )
-  )
-)
-
-# Set a reasonable image size based on number of rows
-h_px <- 140 + 36 * nrow(ci_tbl)  # tune line height if needed
-w_px <- 1200
-
-agg_png("ci_summary_table.png", width = w_px, height = h_px, res = 150)
-grid.newpage(); grid.draw(tbl_grob)
-dev.off()
-
-# If you also want to see it in the document:
-grid.newpage(); grid.draw(tbl_grob)
-```
-
-**Per-capita income (2019–2021)**:
-
-- ***The mean county per-capita income in 2019*** is estimated to lie between (`r scales::comma(round(per_capita_2019_ci_95[1], 2))`,`r scales::comma(round(per_capita_2019_ci_95[2], 2))`) (95% CI).
-
-- ***For 2020***, the 95% CI is (`r scales::comma(round(per_capita_2020_ci_95[1], 2))`,`r scales::comma(round(per_capita_2020_ci_95[2], 2))`)
-
-- ***For 2021***, it is (`r scales::comma(round(per_capita_2021_ci_95[1], 2))` , `r scales::comma(round(per_capita_2021_ci_95[2], 2))`).
-
-The limited overlap across years indicates a statistically meaningful upward shift in the average county income.
-
-**Population (mean per county)**:
-
-- ***The mean county population*** is between (`r scales::comma(round(population_ci_95[1], 2))`,`r scales::comma(round(population_ci_95[2], 2))`) (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
-
-**Education**:
-
-- ***Bachelor’s share*** (mean across counties): `r if (exists("bachelor_ci_95")) paste0("[", round(bachelor_ci_95[1],2), ", ", round(bachelor_ci_95[2],2), "]")`.
-
-- ***Associate share *** (mean across counties): `r if (exists("associate_ci_95")) paste0("(", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), ")")`.
-
-**Population composition (person-weighted) by age**:
-
-- ***Median age*** (mean of county medians): The mean of county median ages lies between (`r round(median_age_ci_95[1], 2)`,`r round(median_age_ci_95[2], 2)`) (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
-
-
-- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r share65_population*100`%, with a 95% CI of (`r share65_ci_95_pct[1]`,`r share65_ci_95_pct[2]`). This is a population-weighted estimate (ratio of totals), so each person counts equally.
-
-- ***Under 5 overall share***: The overall share under age 5 is `r share5_population*100`%, with a 95% CI of (`r share5_ci_95_pct[1]`,`r share5_ci_95_pct[2]`).
-
-
 ## Scatter plot to visualize correlation between our main variables
 
 ```{r}
@@ -707,10 +790,10 @@ The majority of the counties are concentrated at low income levels, and income i
 
 # SMART Questions and Test
 
-### Is there a statistically relationship between a county's economic income group and its college degree attainment group?
+## Is there a statistically relationship between a county's economic income group and its college degree attainment group?
 
 
-## Chi-squares Test:
+### Chi-squares Test:
 The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the relevant degree percentages to create three categories for each variable: Low, Medium, and High. 
 
 This categorization used the 25th and 75th percentiles as cut-off points. Specifically, counties below the 25th percentile were classified as Low, those between the 25th and 75th percentiles as Medium, and those above the 75th percentile as High. This approach ensured that approximately one-quarter ($\approx 25\%$) of all counties fell into the Low group, one-half ($\approx 50\%$) into the Medium group, and one-quarter ($\approx 25\%$) into the High group for each variable. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.

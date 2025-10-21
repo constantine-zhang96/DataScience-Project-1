@@ -16,6 +16,13 @@ output:
     toc: true
     toc_depth: '3'
 ---
+
+# Lietrature Review
+
+
+
+
+# Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
@@ -40,7 +47,8 @@ data_counties <- read.csv("introdata_merged_counties.csv")
 data_counties %>% drop_na()
 ```
 
-# Preview data set
+
+# Summary and preview data set
 
 ```{r preview data}
 tmp <- head(data_counties, 5)
@@ -58,19 +66,16 @@ kable(tmp, caption = "Table 1. First 5 rows of counties data",
   kableExtra::scroll_box(width = "100%", height = "300px")
 ```
 
-# Summary data set
+```{r}
+names(data_counties)
+```
+
+The provided dataset offers detailed information for U.S. counties in three main categories. First, Economic Data tracks the average income for each person in the county (Per-Capita Personal Income) across three specific years: 2019, 2020 and 2021. Second, Education Data focuses on the attainment of residents, listing both the raw counts and calculated percentages of people with an Associate Degree and a Bachelor’s Degree. Third, Demographic Data covers basic population facts, including the total population (POPESTIMATE), the number of people in different age groups (like 18+ or 65+) and the median age, with each county being uniquely identified by its FIPS code. This allows the project to compare how a county's level of education relates to its economic health.
+
 
 ```{r data set summary}
 summary(data_counties)
 ```
-```{r exclude extreme value}
-quantile(data_counties$bachelor_degree_numbers_2016_2020, prob =0.95)
-quantile(data_counties$associate_degree_numbers_2016_2020, prob =0.95)
-```
-- For Bachelor degree from 2015-2019: 95% of counties are ≤ 112,684; the top ~5% are > 112,684.
-
-- For Associate degree from 2015-2019: 95% of counties are ≤ 93,890; the top ~5% are > 93,890.
-
 ```{r Per Capita Personal Income Distribution by State (2020)}
 
 state_income <- data_counties %>%
@@ -106,46 +111,22 @@ ggplot(data_counties_filtered,
     y = "Per Capita Personal Income (2020)"
   )
 ```
-
 The box plot displays the distribution of Per Capita Personal Income at the county level for 15 states chosen as a balanced sample across low, medium and high state-level incomes. The sorting is done by the median income of the counties within each state, placing Georgia (GA) at the bottom and North Dakota (ND) at the top. The colored boxes represent the central 50% of county incomes, with Colorado (CO) showing the greatest range. The outliers, representing specific counties with incomes far outside the typical range for that state, such as extremely wealthy county in Colorado. 
 
 
+# Data cleaning
 
-# Normality test
+## Calculate Percentage for education level
 
-**Objective**
-Assess whether the distribution of per-capita personal income (2019–2021) is approximately Normal, and decide how to proceed for hypothesis testing method for the next parts
+```{r calculate bachelor and associate degree percentage for working age population in 2020}
+data_counties$bachelor_degree_percentage_2016_2020 <- data_counties$bachelor_degree_numbers_2016_2020/(data_counties$AGE18PLUS_TOT - data_counties$AGE65PLUS_TOT)  * 100
 
-**Method**
-
-We evaluated normality using: quantile–quantile (QQ) plots against the Normal distribution
-
-**Plotting**
-
-
-```{r qqlot income 2020}
-income2020_qqplots <- qqnorm(data_counties$per_capita_personal_income_2020,
-                         main = "QQ Plot of Personal Income Per Capita in 2020",
-                         xlab = "Theoretical Quantiles",
-                         ylab = "Sample Quantiles",
-                         plot.it = TRUE,
-                         datax = FALSE)
-qqline(data_counties$per_capita_personal_income_2020, 
-       col = 2,
-       lwd = 2)
+data_counties$associate_degree_percentage_2016_2020Test <- data_counties$associate_degree_numbers_2016_2020/(data_counties$AGE18PLUS_TOT- data_counties$AGE65PLUS_TOT) * 100
 
 ```
-```{r qqlot bachelor 2020}
-bachelor2020_qqplots <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020,
-                         main = "QQ Plot of Bachelor degree number 2016 - 2020",
-                         xlab = "Theoretical Quantiles",
-                         ylab = "Sample Quantiles",
-                         plot.it = TRUE,
-                         datax = FALSE)
-qqline(data_counties$bachelor_degree_numbers_2016_2020, 
-       col = 2,
-       lwd = 2)
+We calculated the percentage of bachelor and associate degree percentage in terms of working age population for 2016 to 2020. We define working age population as person who's age is between 18 and 65. 
 
+<<<<<<< HEAD
 ```
 ```{r qqlot associate 2020}
 associate2020_qqplots <- qqnorm(data_counties$associate_degree_numbers_2016_2020,
@@ -195,6 +176,9 @@ The raw  variable is non-normal. This does not invalidate parametric procedures 
 - inflated influence of extreme values,
 
 # Identify the extreme value
+=======
+## Remove extreme value (1.5 IQR method)
+>>>>>>> ec0dd7bb45b874566af651c7b2441e749ff49124
 
 To determine the extreme values to smoothen the distribution of income, we exclude extreme value using the IQR method to define the upper and lower bound and and flagged any value outside the bound.
 
@@ -235,52 +219,17 @@ data_counties_No_Outliers <- data_counties_No_Outliers %>%
 data_counties <- data_counties %>%
   left_join(data_counties_No_Outliers, by = c("state", "county_FIPS", "county"))
 
+rm(data_counties_No_Outliers)
 ```
 
-```{r remove extreme value bachelor and associate}
-Q1 = quantile(data_counties$associate_degree_numbers_2016_2020, 0.25, na.rm = TRUE)
-Q3 = quantile(data_counties$associate_degree_numbers_2016_2020, 0.75, na.rm = TRUE)
-IQRv = Q3 - Q1
-lo = Q1 - 1.5 * IQRv
-hi = Q3 + 1.5 * IQRv
-data_counties$associate_degree_numbers_2016_2020_No_Outliers <- 
-  ifelse(
-    data_counties$associate_degree_numbers_2016_2020 >= lo & 
-    data_counties$associate_degree_numbers_2016_2020 <= hi,
-    data_counties$associate_degree_numbers_2016_2020,
-    NA
-  )
-
-
-Q1 = quantile(data_counties$bachelor_degree_numbers_2016_2020, 0.25, na.rm = TRUE)
-Q3 = quantile(data_counties$bachelor_degree_numbers_2016_2020, 0.75, na.rm = TRUE)
-IQRv = Q3 - Q1
-lo = Q1 - 1.5 * IQRv
-hi = Q3 + 1.5 * IQRv
-data_counties$bachelor_degree_numbers_2016_2020_No_Outliers <- 
-  ifelse(
-    data_counties$bachelor_degree_numbers_2016_2020 >= lo & 
-    data_counties$bachelor_degree_numbers_2016_2020 <= hi,
-    data_counties$bachelor_degree_numbers_2016_2020,
-    NA
-  )
-
-```
-
-```{r check how much obs we have left }
-data_counties_clean <- data_counties %>%
-  drop_na()
-length(data_counties_clean$county_FIPS)
-```
-
-
+### Ditrubution plot after removing extreme value
 ```{r plot distribution}
 
 x_limits <- c(20000, 80000)
 x_breaks <- seq(20000, 80000, by = 10000)
 
 # 2020 histogram
-p2020 <- ggplot(data_counties_No_Outliers, 
+p2020 <- ggplot(data_counties, 
                 aes(x = No_Outlier_per_capita_personal_income_2020)) +
   geom_histogram(bins = 40, fill = "#2ca02c", color = "white", alpha = 0.9) +
   scale_x_continuous(labels = comma, limits = x_limits, breaks = x_breaks) +
@@ -292,101 +241,90 @@ p2020 <- ggplot(data_counties_No_Outliers,
 p2020 <- p2020 +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-
-# Combine them side by side using patchwork
-p_side_by_side <- p2020 + 
-  plot_annotation(
-    title = "Per-Capita Personal Income Distribution (IQR Outliers Removed)",
-    theme = theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
-    )
-  )
-
-p_side_by_side
-```
-
-```{r distribution for bachelor}
-
-p_bach <- ggplot(data_counties, 
-                 aes(x = bachelor_degree_numbers_2016_2020)) +
-  geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
-  labs(
-    title = "Bachelor Degree Numbers (2016-2020)",
-    x = "Number of Bachelor Degrees",
-    y = "Count"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-# Display the plot
-p_bach
-
-p_bach_2 <- ggplot(data_counties, 
-                 aes(x = bachelor_degree_numbers_2016_2020_No_Outliers)) +
-  geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
-  scale_x_continuous(labels = comma) +
-  labs(
-    title = "Bachelor Degree Numbers (2016-2020, No Outliers)",
-    x = "Number of Bachelor Degrees",
-    y = "Count"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-# Display the plot
-p_bach_2
-
+p2020
 
 ```
 
-
-```{r distribution for associate}
-p_associate <- ggplot(data_counties, 
-                 aes(x = associate_degree_numbers_2016_2020)) +
-  geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
-  scale_x_continuous(labels = comma,) +
-  labs(
-    title = "Associate Degree Numbers (2016-2020)",
-    x = "Number of Bachelor Degrees",
-    y = "Count"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-# Display the plot
-p_associate
+After removing IQR outliers, the histograms by year become noticeably more symmetric and centered, indicating that a small number of very high-income counties were driving the skew
 
 
+# EDA
 
-p_associate_2 <- ggplot(data_counties, 
-                 aes(x = associate_degree_numbers_2016_2020_No_Outliers)) +
-  geom_histogram(bins = 40, fill = "#1f77b4", color = "white", alpha = 0.9) +
-  scale_x_continuous(labels = comma) +
-  labs(
-    title = "Associate Degree Numbers (2016-2020, No Outliers)",
-    x = "Number of Associate Degrees",
-    y = "Count"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-# Display the plot
-p_associate_2
+## Normality test 
+
+**Objective**
+Assess whether the distribution of per-capita personal income (2019–2021) is approximately Normal, and decide how to proceed for hypothesis testing method for the next parts
+
+**Method**
+
+We evaluated normality using: quantile–quantile (QQ) plots against the Normal distribution
+
+**Plotting**
+
+```{r qqlot income 2020}
+income2020_qqplots <- qqnorm(data_counties$per_capita_personal_income_2020,
+                         main = "QQ Plot of Personal Income Per Capita in 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$per_capita_personal_income_2020, 
+       col = 2,
+       lwd = 2)
+
 ```
+Our QQ plot suggests the presence of observations with unusually high income levels, indicating potential outliers in the upper tail of the distribution.
+
+```{r qqlot bachelor 2020}
+bachelor2020_qqplots <- qqnorm(data_counties$bachelor_degree_percentage_2016_2020,
+                         main = "QQ Plot of Bachelor degree percentage for working age population 2016 - 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$bachelor_degree_percentage_2016_2020, 
+       col = 2,
+       lwd = 2)
+
+```
+Our qqplot for bachelor degree percentage demonstrate a deviation from our line at both lower and upper tail of the graph, this also suggests us that there exist outliers in both ends for our sample data. 
+
+
+```{r qqlot associate 2020}
+associate2020_qqplots <- qqnorm(data_counties$associate_degree_percentage_2016_2020Test,
+                         main = "QQ Plot of Associate degree percentage for working age population 2016 - 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$associate_degree_percentage_2016_2020Test, 
+       col = 2,
+       lwd = 2)
+```
+This qqplot imply that we have a approximately normally distributed sample data for the associate degree precentage. 
 
 
 
+**Result Analysis**
+
+All three QQ plots scream non-normal with a strong right tail. That’s expected at county level.
+
+What the plots show
+
+Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
+
+Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
+
+The raw  variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
+
+- potential heteroskedasticity across groups,
+
+- inflated influence of extreme values,
+
+
+
+
+### Normality test after remove the extreme value
 ```{r new qqplot 2020}
 income2020_qqplots_NoOut <- qqnorm(data_counties$No_Outlier_per_capita_personal_income_2020,
                          main = "QQ Plot of Personal Income Per Capita in 2020, with no Outliers",
@@ -399,61 +337,122 @@ qqline(data_counties$No_Outlier_per_capita_personal_income_2020,
        lwd = 2)
 ```
 
-```{r new qqplot bachelor 2020}
-bachelor2020_qqplots_NoOut <- qqnorm(data_counties$bachelor_degree_numbers_2016_2020_No_Outliers,
-                         main = "QQ Plot of bachelor degree number in 2020, with no Outliers",
-                         xlab = "Theoretical Quantiles",
-                         ylab = "Sample Quantiles",
-                         plot.it = TRUE,
-                         datax = FALSE)
-qqline(data_counties$bachelor_degree_numbers_2016_2020_No_Outliers, 
-       col = 2,
-       lwd = 2)
-```
+**Result Analysis**
 
-```{r new qqplot associate 2020}
-associate2020_qqplots_NoOut <- qqnorm(data_counties$associate_degree_numbers_2016_2020_No_Outliers,
-                         main = "QQ Plot of associate degree number in 2020, with no Outliers",
-                         xlab = "Theoretical Quantiles",
-                         ylab = "Sample Quantiles",
-                         plot.it = TRUE,
-                         datax = FALSE)
-qqline(data_counties$associate_degree_numbers_2016_2020_No_Outliers, 
-       col = 2,
-       lwd = 2)
-```
+For per-capita personal income in 2020, the extreme values are predominantly on the high side (right tail), which is consistent with the QQ plots (heavy upper tail).
 
-For per-capita personal income in 2019–2021, the extreme values are predominantly on the high side (right tail), which is consistent with the QQ plots (heavy upper tail).
 
-After removing IQR outliers, the histograms by year become noticeably more symmetric and centered, indicating that a small number of very high-income counties were driving the skew
 
 These extreme values likely reflect genuine high-income counties rather than data entry errors (they are consistent across years and align with known distributional features of income).
 
-```{r scatter plot after exclude extreme value}
-ggplot(data_counties, aes(x = bachelor_degree_numbers_2016_2020_No_Outliers, y = No_Outlier_per_capita_personal_income_2020 )) +
-  geom_point() +
-  theme_minimal() +
-  labs(
-    title = "Bachelor’s Degree Numbers vs. Per Capita Personal Income (2020) 
-    Scatter Plot - Exclude extreme value",
-    x = "Number of Bachelor's Degree 2016-2020",
-    y = "Personal Income Per Capita (2020) with no Outliers " 
-  ) 
-  
+We will not be removing extreme value in our education level data because we will be using percentage data so the extreme value can not influence the data distribution that much and we can use log function to further smooth the distribution. 
 
 
-ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020_No_Outliers , y = No_Outlier_per_capita_personal_income_2020 )) +
-  geom_point() +
+
+## Bar chart for comparison 
+
+We want to see how each state is doing compare the the overall average value.
+
+For this project, we will be focus on the per capita personal income of 2020 and the corresponding education level percentage data. 
+
+**Method**
+
+Our method for this visualization is simple: since we already have state indicator variables for our counties data, we group by state and calculate mean value for each state and store these value in a new data set. We then calculate the overall average which is represented by the horizontal red line in each of the bar charts. 
+
+
+### Bar chart for per capita personal income state leve 2020
+```{r  distribution of per capita income in 2020 for each state compare the mean}
+data_counties$state <- as.factor(data_counties$state)
+
+
+state_means <- data_counties %>%
+  group_by(state) %>%
+  summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
+
+state_means_No_Outliers <- data_counties %>%
+  group_by(state) %>%
+  summarize(mean_income = mean(No_Outlier_per_capita_personal_income_2020, na.rm = TRUE))
+
+ggplot(state_means, aes(x = reorder(state, mean_income), y = mean_income)) +
+  geom_col(fill = "skyblue") + 
+  geom_hline(aes(yintercept = mean(mean_income, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Mean Income by State in 2020",
+       x = "State",
+       y = "Mean Income") +
   theme_minimal() +
-  labs(
-    title = "Associate’s Degree Numbers vs. Per Capita Personal Income (2020) 
-    Scatter Plot - Exclude extreme value",
-    x = "Number of Associate's Degree 2016-2020",
-    y = "Personal Income Per Capita (2020)"
-  ) 
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, size = 8)
+  )
+
+
+ggplot(state_means_No_Outliers, aes(x = reorder(state, mean_income), y = mean_income)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(mean_income, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Mean income without Outliers",
+       x = "State",
+       y = " Bachelor degree numbers") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
 ```
 
-# Calculate the 95% CI
+
+### Bar chart for bachelor degree percentage state level 2020 
+```{r}
+
+state_means_bachelor <- data_counties %>%
+  group_by(state) %>%
+  summarize(bachelor_degree_percentage = mean(bachelor_degree_percentage_2016_2020, na.rm = TRUE))
+
+
+ggplot(state_means_bachelor, aes(x = reorder(state, bachelor_degree_percentage), y = bachelor_degree_percentage)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(bachelor_degree_percentage, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "percentage of bachelor degree from 2016-2020 by State",
+       x = "State",
+       y = " Bachelor degree percentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+
+
+```
+
+
+### Bar chart for associate degree percentage state level 2020
+```{r}
+
+state_means_associate <- data_counties %>%
+  group_by(state) %>%
+  summarize(associate_degree_percentage = mean(associate_degree_percentage_2016_2020Test, na.rm = TRUE))
+
+
+
+ggplot(state_means_associate, aes(x = reorder(state, associate_degree_percentage), y = associate_degree_percentage)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(associate_degree_percentage, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Percentage of Associate degree from 2016-2020 by State",
+       x = "State",
+       y = " Associate degree percentage") +
+  
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+
+
+```
+
+
+## Calculate the 95% CI
 
 ```{r  finding Confidence Intervals for income, degree, population}
 per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
@@ -465,7 +464,7 @@ per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
 per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
 per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
 
-bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2016_2019, conf.level=0.95)
+bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2015_2019, conf.level=0.95)
 bachelor_ci_95 <- bachelor_ttest$conf.int
 
 associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
@@ -582,140 +581,123 @@ The limited overlap across years indicates a statistically meaningful upward shi
 
 - ***Under 5 overall share***: The overall share under age 5 is `r share5_population*100`%, with a 95% CI of (`r share5_ci_95_pct[1]`,`r share5_ci_95_pct[2]`).
 
-# ANOVA test
 
-In this section, we will conduct ANOVA test to test the null hypothesis of difference in mean of income and degree across state.
+## Scatter plot to visualize correlation between our main variables
 
-**Question: Do average per-capita personal incomes (2020) differ across states?**
-
-***Model and sample***
-
-We ran a one-way ANOVA with state as a categorical factor and county-level per-capita income as the outcome. This tests whether between-state differences in means are larger than within-state variation across counties.
-
-```{r  T-test to compare mean of income}
-data_counties$state <- as.factor(data_counties$state)
-
-anova_model_Income <- aov(per_capita_personal_income_2020 ~ state, data = data_counties)
-summary(anova_model_Income)
-
-
-anova_model_Income_NoOut <- aov(No_Outlier_per_capita_personal_income_2020 ~ state, data = data_counties)
-summary(anova_model_Income_NoOut)
-
-
-state_means <- data_counties %>%
-  group_by(state) %>%
-  summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
-
-state_means_No_Outliers <- data_counties %>%
-  group_by(state) %>%
-  summarize(mean_income = mean(No_Outlier_per_capita_personal_income_2020, na.rm = TRUE))
-
-ggplot(state_means, aes(x = reorder(state, mean_income), y = mean_income)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Mean Income by State in 2020",
-       x = "State",
-       y = "Mean Income") +
+```{r}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2016_2020, y = per_capita_personal_income_2020 )) +
+  geom_point() +
   theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 60, hjust = 1, size = 8)
+  labs(
+    title = "Bachelor’s Degree percentage vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Percentage of Bachelor's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
+  ) 
+
+ggplot(data_counties, aes(x = associate_degree_percentage_2016_2020Test , y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Associate’s Degree percentage vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Percentage of Associate's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
+  ) 
+
+```
+
+Our scatter plot demonstrate that there is a slight positive correlation between bachelor degree percentage and per capita personal income. However, we can not see this trend in the associate degree percentage scatter plot, in fact we can hardly see any obvious correlation between associate percentage and per capita personal income.
+
+
+### log log scatter plot
+
+```{r scatterplot for bachlor percentage with respect to income , a log log relationship }
+
+ggplot(data_counties, aes(x = log(bachelor_degree_percentage_2016_2020), y = log(No_Outlier_per_capita_personal_income_2020) )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "log of Bachelor’s Degree percentage vs. log of Per Capita Personal Income (2020) Scatter Plot",
+    x = "log(Percentage of Bachelor's Degree 2016-2020)",
+    y = "log(Personal Income Per Capita (2020))"
+  ) 
+
+```
+
+```{r scatterplot for associate percentage with respect to income , a log log relationship}
+ggplot(data_counties, aes(x = log(associate_degree_percentage_2016_2020Test), y = log(No_Outlier_per_capita_personal_income_2020) )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "log of Associate’s Degree percentage vs. log of Per Capita Personal Income (2020) Scatter Plot",
+    x = "log(Percentage of Associate's Degree 2016-2020)",
+    y = "log(Personal Income Per Capita (2020)"
+  ) 
+
+```
+
+We draw the scatter plot again after remove extreme value from our per capita income columns and take natural log of both income and education data to smooth the distribution and demonstrate the percentage change relationship between two variables. We can still see a clearly upward sloped correlation between bachelor degree percentage and per capita income while the relationship between associate degree percentage and per capita income remain unclear. However, it is showing a slight upward slope on the scatterplot.
+
+
+
+```{r Density Distribution of Per Capita Personal Income (2020)}
+ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
+  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
+  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Per Capita Personal Income (2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Per Capita Personal Income (2020)",
+    y = "Density"
   )
-
-
-ggplot(state_means_No_Outliers, aes(x = reorder(state, mean_income), y = mean_income)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Mean income without Outliers",
-       x = "State",
-       y = " Bachelor degree numbers") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
 ```
 
-***Result***
 
-This result is statistically significant at even 1% level. We reject the null that all state means are equal; there is strong evidence that average county income differs by state at 1% level.  
-
-**Question: Do mean county bachelor’s degree shares differ across states?**
-
-```{r}
-anova_model_Bachelor <- aov(bachelor_degree_numbers_2016_2020 ~ state, data = data_counties)
-summary(anova_model_Bachelor)
-
-state_means_bachelor <- data_counties %>%
-  group_by(state) %>%
-  summarize(bachelor_degree_numbers = mean(bachelor_degree_numbers_2016_2020, na.rm = TRUE))
-
-state_means_bachelor_No_Outliers <- data_counties %>%
-  group_by(state) %>%
-  summarize(bachelor_degree_numbers = mean(bachelor_degree_numbers_2016_2020_No_Outliers, na.rm = TRUE))
-
-
-anova_model_Bachelor_NoOut <- aov(bachelor_degree_numbers_2016_2020_No_Outliers ~ state, data = data_counties)
-summary(anova_model_Bachelor_NoOut)
-
-ggplot(state_means_bachelor, aes(x = reorder(state, bachelor_degree_numbers), y = bachelor_degree_numbers)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Number of bachelor degree from 2016-2020 by State",
-       x = "State",
-       y = " Bachelor degree numbers") +
+```{r Density Distribution of Bachelors Degree Percentage}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
+  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
+  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
-
-ggplot(state_means_bachelor_No_Outliers, aes(x = reorder(state, bachelor_degree_numbers), y = bachelor_degree_numbers)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Number of bachelor degree from 2016-2020 by State without Outliers",
-       x = "State",
-       y = " Bachelor degree numbers") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+  labs(
+    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with a Bachelor's Degree",
+    y = "Density"
+  )
 ```
 
-***Result***:
+```{r Density Distribution of Associate Degree Percentage}
 
-This result is statistically significant at even the 1% level. We reject the null that all state means are equal; there is strong evidence that average county bachelor’s attainment differs by state at the 1% level.
-
-**Question. Do mean county associate degree shares differ across states?**
-
-```{r}
-anova_model_Associate <- aov(associate_degree_numbers_2016_2020 ~ state, data = data_counties)
-summary(anova_model_Associate)
-
-anova_model_Associate_No_Outliers <- aov(associate_degree_numbers_2016_2020_No_Outliers ~ state, data = data_counties)
-summary(anova_model_Associate_No_Outliers)
-
-#group by to get state level mean 
-state_means_associate <- data_counties %>%
-  group_by(state) %>%
-  summarize(associate_degree_numbers = mean(associate_degree_numbers_2016_2020, na.rm = TRUE))
-
-state_means_associate_No_Outliers <- data_counties %>%
-  group_by(state) %>%
-  summarize(associate_degree_numbers = mean(associate_degree_numbers_2016_2020_No_Outliers, na.rm = TRUE))
-
-#bar chart to look at distribution of state level bachelor number 
-ggplot(state_means_associate, aes(x = reorder(state, associate_degree_numbers), y = associate_degree_numbers)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Number of Associate degree from 2016-2020 by State",
-       x = "State",
-       y = " Associate degree numbers") +
-  theme_minimal() + 
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
-
-
-ggplot(state_means_associate_No_Outliers, aes(x = reorder(state, associate_degree_numbers), y = associate_degree_numbers)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "Number of Associate degree from 2016-2020 by State without outliers",
-       x = "State",
-       y = " Associate degree numbers") +
-  theme_minimal() + 
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+ggplot(data_counties, aes(x = associate_degree_percentage_2016_2020)) +
+  
+  geom_density(fill = "orange", alpha = 0.6, color = "darkorange") +
+  
+  geom_vline(aes(xintercept = mean(associate_degree_percentage_2016_2020, na.rm = TRUE)), 
+             color = "red", linetype = "dashed", size = 1) +
+  
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Associate Degree Percentage (2016-2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with an Associate's Degree",
+    y = "Density"
+  )
 ```
 
-***Result***:
 
-This result is statistically significant at even the 1% level. We reject the null that all state means are equal; there is strong evidence that average county associate-degree attainment differs by state at the 1% level.
+The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the median. A similar pattern can be seen in the bachelors degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. In contrast, the Associate's degree distribution is structurally different; it peaks later and more centrally, proving it represents a broader and more stable base of educational attainment across the U.S. counties.
 
-# Chi-squares Test
+# SMART Questions and Test
+
+### Is there a statistically relationship between a county's economic income group and its college degree attainment group?
+
+
+## Chi-squares Test:
+The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the 2016-2020 degree percentages to create three approximately equal-sized categories for each variable: Low, Medium, and High. This approach ensured that about one-third of all counties fell into each group. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.
+
+
 
 ```{r  Chi-squares}
 
@@ -725,8 +707,8 @@ data_counties <- data_counties %>%
       per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.67, na.rm = TRUE) ~ "Medium",
       TRUE ~ "High"),
       bachelor_cat = case_when(
-      bachelor_degree_percentage_2016_2019 < quantile(bachelor_degree_percentage_2016_2019, 0.33, na.rm = TRUE) ~ "Low",
-      bachelor_degree_percentage_2016_2019 < quantile(bachelor_degree_percentage_2016_2019, 0.67, na.rm = TRUE) ~ "Medium",
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.33, na.rm = TRUE) ~ "Low",
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.67, na.rm = TRUE) ~ "Medium",
       TRUE ~ "High"),
       associate_cat = case_when(
       associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.33, na.rm = TRUE) ~ "Low",
@@ -783,36 +765,6 @@ The χ2 tests verify that there is a strong correlation between a county's educa
 
 The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1246) than an associate's degree (χ2≈151), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
 
-```{r Density Distribution of Per Capita Personal Income (2020)}
-ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
-  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
-  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
-             color = "red", linetype = "dashed", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Density Distribution of Per Capita Personal Income (2020)",
-    subtitle = "The dashed red line indicates the mean.",
-    x = "Per Capita Personal Income (2020)",
-    y = "Density"
-  )
-```
-
-
-```{r Density Distribution of Bachelors Degree Percentage}
-ggplot(data_counties, aes(x = bachelor_degree_percentage_2016_2019)) +
-  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
-  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2016_2019, na.rm = T)), 
-             color = "red", linetype = "dashed", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
-    subtitle = "The dashed red line indicates the mean.",
-    x = "Percentage of Population with a Bachelor's Degree",
-    y = "Density"
-  )
-```
-
-The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the mode. A similar pattern can be seen in the bachelor's degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. 
 
 ### Personal Income vs. Gender
 
@@ -846,11 +798,36 @@ chi_gi <- chisq.test(ct_gender_income)
 chi_gi
 ```
 
+
 **Conclusion** 
 
 Due to extremely small p-value, we ***reject $H_{0}$***. Gender and income quartile are not independent: the gender mix varies across income quartiles.
 
 **Male/Female share by income quartiles**
+
+```{r income vs gender graph}
+prop_ct <- prop.table(ct_gender_income, margin = 2)  
+
+par(mar = c(5, 5, 4, 8))  
+
+bar_x <- barplot(
+  prop_ct,
+  beside = TRUE,
+  col = c("steelblue", "pink"),
+  main = "Population by Gender and Income Quartile",
+  xlab = "Income Quartile",
+  ylab = "Proportion",
+  ylim = c(0, max(prop_ct)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x) + 1,  
+  y = max(prop_ct),    
+  legend = c("Male", "Female"),
+  fill = c("steelblue", "pink"),
+  xpd = TRUE)
+
+```
 
 ```{r table of income share by gender}
 quartiles <- colnames(ct_gender_income)
@@ -872,6 +849,7 @@ knitr::kable(
   align = c("l","r","r"),
   caption = "Male/Female shares by income quartile (per-capita income 2020)."
 )
+
 ```
 
 ### Personal Income vs. Median age
@@ -883,6 +861,12 @@ $H_{0}$: (independence): Income-quartile and median-age–quartile are independe
 $H_{1}$: Median age differs for at least one income quartile.
 
 ```{r income vs age}
+
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, c(0, .25, .5, .75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Q1 (lowest)","Q2","Q3","Q4 (highest)"))
+
+
 age_brks <- quantile(data_counties$MEDIAN_AGE_TOT, c(0, .25, .5, .75, 1), na.rm = TRUE)
 age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = TRUE,
              labels = c("Q1","Q2","Q3","Q4"))
@@ -890,8 +874,33 @@ age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = T
 ct_income_age <- table(IncomeQuartile = inc_q, AgeQuartile = age_q)
 
 chi_age <- chisq.test(ct_income_age)
-chi_age
+
+prop_ct_age <- prop.table(ct_income_age, margin = 1)
+
+par(mar = c(5, 5, 4, 8))
+bar_x_age <- barplot(
+  t(prop_ct_age),
+  beside = TRUE,
+  col = c("lightblue", "steelblue", "blue", "navy"),
+  main = "Age Quartile Distribution by Income Quartile",
+  xlab = "Income Quartile",
+  ylab = "Proportion",
+  ylim = c(0, max(prop_ct_age)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x_age) + 0.5,
+  y = max(prop_ct_age),
+  legend = c("Youngest",
+             "Young Adults",
+             "Middle-aged",
+             "Oldest"),,
+  fill = c("lightblue", "steelblue", "blue", "navy"),
+  xpd = TRUE)
+
 ```
 **Conclusion** 
 
-We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles.
+We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles. 
+
+The graph shows a straightforward connection between age and how much money people make. As income levels go up, the share of the oldest group gets bigger, making them the largest group in the top-earning bracket (Q4). The opposite is true for younger people; they are most common in the lowest-earning group (Q1) and their share of the population tends to shrink in the higher-income brackets.

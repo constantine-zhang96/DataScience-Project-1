@@ -19,7 +19,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(results="markup", warning = F, message = F,
                       fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
-options(scientific=T, digits = 3,scipen = 999)
+options(scientific=T, digits = 4,scipen = 999)
 ```
 
 ```{r library, include = FALSE}
@@ -30,6 +30,9 @@ library(tinytex)
 library(kableExtra)
 library(scales)
 library(patchwork)
+library(tibble)
+library(gt)
+library(webshot2)
 ```
 
 ```{r data import and cleaning na value, include = FALSE}
@@ -181,11 +184,9 @@ ggplot(data_counties, aes(x = associate_degree_numbers_2016_2020 , y = per_capit
 
 All three QQ plots scream non-normal with a strong right tail. That’s expected at county level.
 
-What the plots show
+- Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
 
-Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
-
-Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
+- Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
 
 The raw  variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
 
@@ -478,47 +479,108 @@ population_ci_95 <- population_ttest$conf.int
 median_age_ttest <- t.test(x=data_counties$MEDIAN_AGE_TOT, conf.level=0.95)
 median_age_ci_95 <- median_age_ttest$conf.int
 
-z        <- qnorm(0.975)
-sum_pop <- sum(data_counties$POPESTIMATE,na.rm = TRUE)
-share5 <- sum(data_counties$UNDER5_TOT,na.rm = TRUE) / sum_pop
-se5 <- sqrt(share5 * (1 - share5) / sum_pop)
-share5_ci_95 <- c(share5 - z*se5, share5 + z*se5)
-share5_ci_95_pct <- share5_ci_95 * 100
+share5 <- data_counties$UNDER5_TOT/data_counties$POPESTIMATE
+share5_population <- sum(data_counties$UNDER5_TOT,na.rm = TRUE)/sum(data_counties$POPESTIMATE,na.rm = TRUE)
+share_5_ttest <- t.test(x=share5, conf.level=0.95)
+share_5_ci_95 <- share_5_ttest$conf.int
 
-share65 <- sum(data_counties$AGE65PLUS_TOT,na.rm = TRUE) / sum_pop
-se65 <- sqrt(share65 * (1 - share65) / sum_pop)
-share65_ci_95 <- c(share65 - z*se65, share65 + z*se65)
-share65_ci_95_pct <- share65_ci_95 * 100
+share65 <- data_counties$AGE65PLUS_TOT/data_counties$POPESTIMATE
+share65_population <- sum(data_counties$AGE65PLUS_TOT,na.rm = TRUE)/sum(data_counties$POPESTIMATE,na.rm = TRUE)
+share_65_ttest <- t.test(x=share65, conf.level=0.95)
+share_65_ci_95 <- share_65_ttest$conf.int
+```
+
+```{r make into table}
+num1 <- function(x) as.numeric(unname(x))[1]
+
+n_obs <- function(x) sum(!is.na(x))
+
+share5_ci_95_pct  <- share_5_ci_95  * 100
+share65_ci_95_pct <- share_65_ci_95 * 100
+
+ci_tbl <- tibble::tribble(
+  ~Item,                             ~Time,     ~Mean,                                   ~`CI Low`,                 ~`CI High`,                ~`N (base)`,                                           ~Method,
+  "Per-capita personal income",      "2019",    num1(per_capita_2019_ttest$estimate),    num1(per_capita_2019_ci_95[1]), num1(per_capita_2019_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2019), "t-interval (mean)",
+  "Per-capita personal income",      "2020",    num1(per_capita_2020_ttest$estimate),    num1(per_capita_2020_ci_95[1]), num1(per_capita_2020_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2020), "t-interval (mean)",
+  "Per-capita personal income",      "2021",    num1(per_capita_2021_ttest$estimate),    num1(per_capita_2021_ci_95[1]), num1(per_capita_2021_ci_95[2]), n_obs(data_counties$per_capita_personal_income_2021), "t-interval (mean)",
+  "Bachelor degree share",           "2016–2019", num1(bachelor_ttest$estimate),         num1(bachelor_ci_95[1]),        num1(bachelor_ci_95[2]),        n_obs(data_counties$bachelor_degree_percentage_2016_2019), "t-interval (mean)",
+  "Associate degree share",          "2016–2020", num1(associate_ttest$estimate),        num1(associate_ci_95[1]),       num1(associate_ci_95[2]),       n_obs(data_counties$associate_degree_percentage_2016_2020), "t-interval (mean)",
+  "County population",               "2020",    num1(population_ttest$estimate),         num1(population_ci_95[1]),      num1(population_ci_95[2]),      n_obs(data_counties$POPESTIMATE),                       "t-interval (mean)",
+  "Median age (years)",              "2020",    num1(median_age_ttest$estimate),         num1(median_age_ci_95[1]),      num1(median_age_ci_95[2]),      n_obs(data_counties$MEDIAN_AGE_TOT),                    "t-interval (mean)",
+  "Population share under age 5 (%)","2020",    num1(share5 * 100),                      num1(share5_ci_95_pct[1]),      num1(share5_ci_95_pct[2]),      n_obs(data_counties$UNDER5_TOT),                         "t-interval (mean)",
+  "Population share age 65+ (%)",    "2020",    num1(share65 * 100),                     num1(share65_ci_95_pct[1]),     num1(share65_ci_95_pct[2]),     n_obs(data_counties$AGE65PLUS_TOT),                      "t-interval (mean)"
+) |>
+  dplyr::mutate(
+    Mean = round(as.numeric(Mean), 2),
+    `CI Low` = round(as.numeric(`CI Low`), 4),
+    `CI High` = round(as.numeric(`CI High`), 4),
+    `N (base)` = as.integer(`N (base)`)
+  )
+# --- Save as PNG without Chrome/webshot ---
+# install.packages(c("gridExtra","ragg"))
+library(gridExtra)
+library(grid)
+library(ragg)
+library(gtable)
+
+row_fills <- rep(c("#FFFFFF", "#F7F7F7"), length.out = nrow(ci_tbl))
+
+tbl_grob <- tableGrob(
+  ci_tbl,
+  rows = NULL,
+  theme = ttheme_default(
+    base_size = 10,
+    core = list(
+      bg_params = list(fill = row_fills, col = "grey70", lwd = 0.6),  # <- cell borders
+      fg_params = list(cex = 0.9)                                     # text
+    ),
+    colhead = list(
+      bg_params = list(fill = "#EDEDED", col = "grey70", lwd = 0.8),  # header borders
+      fg_params = list(fontface = "bold")
+    )
+  )
+)
+
+# Set a reasonable image size based on number of rows
+h_px <- 140 + 36 * nrow(ci_tbl)  # tune line height if needed
+w_px <- 1200
+
+agg_png("ci_summary_table.png", width = w_px, height = h_px, res = 150)
+grid.newpage(); grid.draw(tbl_grob)
+dev.off()
+
+# If you also want to see it in the document:
+grid.newpage(); grid.draw(tbl_grob)
 ```
 
 **Per-capita income (2019–2021)**:
 
-- ***The mean county per-capita income in 2019*** is estimated to lie between `r scales::comma(round(per_capita_2019_ci_95[1], 2))` and `r scales::comma(round(per_capita_2019_ci_95[2], 2))` (95% CI).
+- ***The mean county per-capita income in 2019*** is estimated to lie between (`r scales::comma(round(per_capita_2019_ci_95[1], 2))`,`r scales::comma(round(per_capita_2019_ci_95[2], 2))`) (95% CI).
 
-- ***For 2020***, the 95% CI is `r scales::comma(round(per_capita_2020_ci_95[1], 2))` to `r scales::comma(round(per_capita_2020_ci_95[2], 2))`
+- ***For 2020***, the 95% CI is (`r scales::comma(round(per_capita_2020_ci_95[1], 2))`,`r scales::comma(round(per_capita_2020_ci_95[2], 2))`)
 
-- ***For 2021***, it is `r scales::comma(round(per_capita_2021_ci_95[1], 2))` to `r scales::comma(round(per_capita_2021_ci_95[2], 2))`.
+- ***For 2021***, it is (`r scales::comma(round(per_capita_2021_ci_95[1], 2))` , `r scales::comma(round(per_capita_2021_ci_95[2], 2))`).
 
 The limited overlap across years indicates a statistically meaningful upward shift in the average county income.
 
 **Population (mean per county)**:
 
-- ***The mean county population*** is between `r scales::comma(round(population_ci_95[1], 2))` and `r scales::comma(round(population_ci_95[2], 2))` (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
+- ***The mean county population*** is between (`r scales::comma(round(population_ci_95[1], 2))`,`r scales::comma(round(population_ci_95[2], 2))`) (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
 
 **Education**:
 
 - ***Bachelor’s share*** (mean across counties): `r if (exists("bachelor_ci_95")) paste0("[", round(bachelor_ci_95[1],2), ", ", round(bachelor_ci_95[2],2), "]")`.
 
-- ***Associate share *** (mean across counties): `r if (exists("associate_ci_95")) paste0("[", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), "]")`.
+- ***Associate share *** (mean across counties): `r if (exists("associate_ci_95")) paste0("(", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), ")")`.
 
 **Population composition (person-weighted) by age**:
 
-- ***Median age*** (mean of county medians): The mean of county median ages lies between `r round(median_age_ci_95[1], 2)` and `r round(median_age_ci_95[2], 2)` (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
+- ***Median age*** (mean of county medians): The mean of county median ages lies between (`r round(median_age_ci_95[1], 2)`,`r round(median_age_ci_95[2], 2)`) (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
 
 
-- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r scales::percent(share65, accuracy = 0.01)`, with a 95% CI of `r scales::percent(share65_ci_95[1], accuracy = 0.01)` to `r scales::percent(share65_ci_95[2], accuracy = 0.01)`. This is a population-weighted estimate (ratio of totals), so each person counts equally.
+- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r share65_population*100`%, with a 95% CI of (`r share65_ci_95_pct[1]`,`r share65_ci_95_pct[2]`). This is a population-weighted estimate (ratio of totals), so each person counts equally.
 
-- ***Under 5 overall share***: The overall share under age 5 is `r scales::percent(share5, accuracy = 0.01)`, with a 95% CI of `r scales::percent(share5_ci_95[1], accuracy = 0.01)` to `r scales::percent(share5_ci_95[2], accuracy = 0.01)`.
+- ***Under 5 overall share***: The overall share under age 5 is `r share5_population*100`%, with a 95% CI of (`r share5_ci_95_pct[1]`,`r share5_ci_95_pct[2]`).
 
 # ANOVA test
 

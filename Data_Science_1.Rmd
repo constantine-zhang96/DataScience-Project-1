@@ -1037,6 +1037,7 @@ The graph shows a straightforward connection between age and how much money peop
 
 Gunawan, R. (2021). Per Capita Income by County 2021 vs. Education [Data Set]. Kaggle. Retrieved from https://www.kaggle.com/datasets/ruddygunawan/per-capita-income-by-county-2021-vs-education
 
-U.S. Census Bureau, Population Division. (2025). Annual County and Puerto Rico Municipio Resident Population Estimates by Selected Age Groups and Sex: April 1, 2020 to July 1, 2024 (CC-EST2024-AGESEX). U.S. Census Bureau. Retrieved from Retrieved from https://www.census.gov/data/tables/time-series/demo/popest/2020s-counties-detail.html
+U.S. Census Bureau, Population Division. (2025). Annual County and Puerto Rico Municipio Resident Population Estimates by Selected Age Groups and Sex: April 1, 2020 to July 1, 2024 (CC-EST2024-AGESEX). U.S. Census Bureau. Retrieved from https://www.census.gov/data/tables/time-series/demo/popest/2020s-counties-detail.html
+
 
 

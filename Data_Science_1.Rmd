@@ -453,7 +453,7 @@ data_counties <- data_counties %>%
 rm(data_counties_No_Outliers)
 ```
 
-### Ditrubution plot after removing extreme value
+### Distrubution plot after removing extreme value
 ```{r plot distribution}
 
 x_limits <- c(20000, 80000)
@@ -796,8 +796,9 @@ The majority of the counties are concentrated at low income levels, and income i
 
 
 ### Chi-squares Test:
-The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the 2016-2020 degree percentages to create three approximately equal-sized categories for each variable: Low, Medium, and High. This approach ensured that about one-third of all counties fell into each group. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.
+The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the relevant degree percentages to create three categories for each variable: Low, Medium, and High. 
 
+This categorization used the 25th and 75th percentiles as cut-off points. Specifically, counties below the 25th percentile were classified as Low, those between the 25th and 75th percentiles as Medium, and those above the 75th percentile as High. This approach ensured that approximately one-quarter ($\approx 25\%$) of all counties fell into the Low group, one-half ($\approx 50\%$) into the Medium group, and one-quarter ($\approx 25\%$) into the High group for each variable. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.
 
 
 ```{r  Chi-squares}
@@ -828,8 +829,18 @@ data_counties$associate_cat <- factor(data_counties$associate_cat,
 
 ```
 
-
 ### Personal Income vs. Bachelor degree 
+
+**Question:** Is there a statistically significant association between a county's Income Level and its Bachelor's Degree Percentage?
+
+**Hypothesis**
+
+Null Hypothesis ($H_0$): There is no association between Income Level and Bachelor's Degree Percentage. (They are independent.)
+
+Alternative Hypothesis ($H_A$): There is an association between Income Level and Bachelor's Degree Percentage.
+
+**Results**
+
 ```{r}
 # Chi-square test: 
 chisq_income_bachelor <- chisq.test(table(data_counties$income_cat, data_counties$bachelor_cat))
@@ -847,11 +858,28 @@ ggplot(data_counties, aes(x = income_cat, fill = bachelor_cat)) +
 
 
 ### Personal Income vs. Associate degree 
+The p-value is significantly less than $0.05$, so we reject the null hypothesis ($H_0$). This confirms an extremely strong and highly significant association between high income and high Bachelor's degree attainment.
+
+### Personal Income vs. Associate degree 
+
+**Question:** Is there a statistically confirmed association between a county's Income Level and its Associate Degree Percentage?
+
+**Hypothesis**
+
+Null Hypothesis ($H_0$): There is no association between Income Level and Associate Degree Percentage. (They are independent.)
+
+Alternative Hypothesis ($H_A$): There is an association between Income Level and Associate Degree Percentage.
+
+**Results**
 ```{r}
 chisq_income_associate <- chisq.test(table(data_counties$income_cat, data_counties$associate_cat))
 chisq_income_associate
+```
 
-# Visualize income vs. associate's degree relationship
+The p-value is significantly less than $0.05$, so we reject the null hypothesis ($H_0$). This confirms a statistically significant association between income and Associate degree attainment.
+
+### Visualize income vs. associate's degree relationship
+```{r}
 ggplot(data_counties, aes(x = income_cat, fill = associate_cat)) +
   geom_bar(position = "fill") +
   theme_minimal() +
@@ -864,10 +892,10 @@ ggplot(data_counties, aes(x = income_cat, fill = associate_cat)) +
 
 The χ2 tests verify that there is a strong correlation between a county's educational profile and economic health (p<0.001 for both). There is a statistically proven correlation between income and both the bachelor's and associate's degree categories.
 
-The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1246) than an associate's degree (χ2≈151), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
+The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1294) than an associate's degree (χ2≈209), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
 
 
-## Is there a relationship between a county's economic income group and its gender distribution?
+## Personal Income vs. Gender
 
 **Hypotheses**
 

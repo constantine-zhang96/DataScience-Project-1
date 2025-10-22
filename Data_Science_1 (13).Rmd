@@ -1,0 +1,1031 @@
+---
+title: "Data Science Project 1"
+author:
+- Constantine Zhang
+- Ha Nguyen
+- Kemal Ege Sural
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: true
+    toc_depth: 3
+    toc_float: true
+  pdf_document:
+    toc: true
+    toc_depth: '3'
+---
+
+# Literature Review
+
+1. Education and Lifetime Earnings in the United States (Tamborini et al., 2015): Lifetime earnings are significantly higher for those with a bachelor’s degree or higher compared to those with only a high school diploma. After adjustment, bachelor’s degree holders earn ~43% (men) and ~51% (women) more over a lifetime compared to high school graduates, less than previous widely cited estimates.
+
+2. College Attainment, Income Inequality, and Economic Security (Hershbein, Kearney, Pardue, 2020): Increasing rates of bachelor’s and associate degree attainment would substantially improve economic security for lower-income individuals and reduce poverty rates.
+
+3. How Education Impacted Income and Earnings From 2004 to 2024 (U.S. Census Bureau, 2025): Over the past two decades, higher educational attainment continued to drive higher median incomes and lower poverty rates. The income gap by educational attainment remains robust; degree attainment is strongly predictive of higher earnings.
+
+# Motivation for our data science project
+
+The literature establishes a strong, persistent link between degree attainment and higher income, but also surfaces limitations in existing analyses:
+
+- Many studies use national or cohort-level data; our project’s county-level, which can reveal local disparities and trends that may not be visible in the research.
+
+- Most prior work analyzes bachelor’s vs. high school, whereas ours focuses on the difference between associate degrees and bachelor degree.
+
+Our project is thus motivated by both academic gaps and policy relevance: providing geographically specific insights on the relationship between educational attainment and income, at the same time analysis on the demographics information such as population age structure, and gender breakdowns.
+
+# Summary and preview data set
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(results="markup", warning = F, message = F,
+                      fig.width=8, fig.height=6, fig.dim=c(8,6), fig.align='center')
+options(scientific=T, digits = 3,scipen = 999)
+```
+
+```{r library, include = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tinytex)
+library(kableExtra)
+library(scales)
+library(patchwork)
+library(tibble)
+library(gt)
+library(webshot2)
+library(gridExtra)
+library(grid)
+library(ragg)
+library(gtable)
+```
+
+```{r data import and cleaning na value, include = FALSE}
+data_counties <- read.csv("introdata_merged_counties.csv")
+data_counties %>% drop_na()
+```
+
+## Data source
+
+For our analysis, our group merged dataset from 2 sources:
+
+1. Kaggle - Per Capita Income by County 2021 vs. Education: in which Data source for United States per capita personal income is from county from U.S. Bureau of Economic Analysis and data source for education level is from U.S. Department of Agriculture
+
+2. US Cencus Bureau: County Population Totals: 2020-2024, retrieved demographic information in year 2020.
+
+## Dataset overview
+
+```{r preview data}
+tmp <- head(data_counties, 5)
+names(tmp) <- c("County FIPS","State","County",
+                "Per-Capita Income (2019)","Per-Capita Income (2020)","Per-Capita Income (2021)",
+                "Associate Degrees (Count, 2016–2020)","Bachelor’s Degrees (Count, 2016–2020)",
+                "Associate Degrees (%)","Bachelor’s Degrees (%)",
+                "Population (Est.)","Population (Male)","Population (Female)",
+                "Under 5 (Count)","Age 18+ (Count)","Age 65+ (Count)","Median Age")
+
+kable(tmp, caption = "Table 1. First 5 rows of counties data",
+      format = "html", align = "c") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                            full_width = FALSE, position = "center") |>
+  kableExtra::scroll_box(width = "100%", height = "300px")
+```
+
+The provided dataset offers detailed information for U.S. counties in three main categories:
+
+- First, Economic Data records the average income for each person in the county (Per-Capita Personal Income) across three specific years: 2019, 2020 and 2021.
+
+- Second, Education Data tells us about the degree attainment records of residents with counts and calculated percentages of people with an Associate Degree and a Bachelor’s Degree in multi-year aggregates (2016–2020). 
+
+- Third, Demographic Data includes information about population, including the total population, gender, the number of people in different age groups and the median age in year 2020.
+
+Each county being uniquely identified by its FIPS code. This allows the project to compare how a county's level of education relates to its economic health.
+
+## Variables details
+
+```{r variables table}
+descriptions <- c(
+  county_FIPS      = "5-digit county FIPS code (string, zero-padded)",
+  POPESTIMATE      = "Total resident population (2020 estimate)",
+  POPEST_MALE      = "Male population (2020 estimate)",
+  POPEST_FEM       = "Female population (2020 estimate)",
+  UNDER5_TOT       = "Population under age 5 (2020)",
+  AGE513_TOT       = "Population ages 5–13 (2020)",
+  AGE1417_TOT      = "Population ages 14–17 (2020)",
+  AGE18PLUS_TOT    = "Population ages 18+ (2020)",
+  AGE65PLUS_TOT    = "Population ages 65+ (2020)",
+  MEDIAN_AGE_TOT   = "Median age (years, 2020)"
+  # Add more: name = "Meaning"
+)
+
+codebook <- enframe(descriptions, name = "Column", value = "Meaning") |>
+  mutate(Column = factor(Column, levels = names(descriptions))) |>
+  arrange(Column)
+
+kbl(codebook, caption = "Variables Codebook", align = c("l","l"), booktabs = TRUE) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped","hover","condensed")) |>
+  column_spec(1, monospace = TRUE) |>
+  column_spec(2, width = "30em") |>
+  scroll_box(width = "100%", height = "300px")
+```
+
+## Limitations
+
+Our merged county-level dataset has several limitations:
+
+- Coverage is incomplete: The dataset includes 3,006 counties and does not include Louisiana (LA) and District of Columbia (DC) (49 state codes present), so results aren’t fully nationwide.
+
+- Uneven time alignment: Education comes from 5-year windows estimates( 2015–2019, 2016–2020), while other measures reflect single-year snapshots. Variables don’t represent the same period.
+
+- Ecological fallacy & weighting: County-level aggregation can mislead individual-level inference; t-tests treats counties as independent and identically distributed and ignore size differences. Model-based methods covered later in the course is more suitable and preferable.
+
+## Summary Statistics
+
+### County summary statistics
+
+```{r categorical summary}
+data_counties$county_FIPS <- as.factor(data_counties$county_FIPS)
+
+state_info <- c("county_FIPS","state","county")
+
+summary(data_counties[ ,state_info])
+```
+For state/county indicator data (`county_FIPS`,`state`,`county`), as they are categorical variables, so summary can’t compute min/median/mean, etc. Therefore the table gives the result for Length/Class/Mode or Count.
+
+### Income summary statistics
+```{r income summary}
+income <- c("per_capita_personal_income_2019","per_capita_personal_income_2020","per_capita_personal_income_2021")
+summary(data_counties[ , income])
+```
+The summary statistics for per capita personal income from 2019 to 2021 reveal a clear upward trend across U.S. counties. The median income rose from 43,516 in 2019 to 50,514 in 2021, an increase of roughly 16% over two years, while the mean followed a similar pattern, increasing from 45,947 to 53,308. 
+
+The fact that the mean consistently exceeds the median indicates a right-skewed distribution, where a small number of high-income counties pull the average up. The interquartile range (IQR) also widened gradually from 12,228 in 2019 to 13,683 in 2021, suggesting slightly increasing income dispersion over time. 
+
+Notably, the maximum values are extremely high (ranging from 278,682 to 318,297), which is likely due to a few outlier counties with unusually high per capita incomes. These outliers could distort the mean.
+
+Overall, the summary reflects broad income growth at both lower and upper ends, but with persistent inequality and a few extreme values influencing the distribution.
+
+```{r Per Capita Personal Income Distribution by State (2020)}
+
+state_income <- data_counties %>%
+  group_by(state) %>%
+  summarize(median_income = median(per_capita_personal_income_2020, na.rm = TRUE))
+
+state_income <- state_income %>%
+  mutate(income_group = ntile(median_income, 3))
+
+set.seed(42)  
+sample_states <- state_income %>%
+  group_by(income_group) %>%
+  slice_sample(n = 5) %>%
+  pull(state)
+
+
+data_counties_filtered <- data_counties %>%
+  filter(state %in% sample_states)
+```
+
+```{r box plot}
+ggplot(data_counties_filtered, 
+       aes(x = reorder(state, per_capita_personal_income_2020, FUN = median),
+           y = per_capita_personal_income_2020,
+           fill = state)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    title = "Per Capita Personal Income Distribution by States (2020)",
+    
+    x = "State",
+    y = "Per Capita Personal Income (2020)"
+  )
+```
+The box plot displays the distribution of Per Capita Personal Income at the county level for 15 states chosen as a balanced sample across low, medium and high state-level incomes. The sorting is done by the median income of the counties within each state, placing Georgia (GA) at the bottom and North Dakota (ND) at the top. The colored boxes represent the central 50% of county incomes, with Colorado (CO) showing the greatest range. The outliers, representing specific counties with incomes far outside the typical range for that state, such as extremely wealthy county in Colorado. 
+
+### Degree summary statistics
+
+#### Calculate Percentage for education level
+
+```{r calculate bachelor and associate degree percentage for working age population in 2020}
+data_counties$bachelor_degree_percentage_2016_2020 <- data_counties$bachelor_degree_numbers_2016_2020/(data_counties$AGE18PLUS_TOT - data_counties$AGE65PLUS_TOT)  * 100
+
+data_counties$associate_degree_percentage_2016_2020Test <- data_counties$associate_degree_numbers_2016_2020/(data_counties$AGE18PLUS_TOT- data_counties$AGE65PLUS_TOT) * 100
+
+```
+We calculated the percentage of bachelor and associate degree percentage in terms of working age population for 2016 to 2020. We define working age population as person who's age is between 18 and 65. 
+
+```{r degree summary}
+degree <- c("bachelor_degree_percentage_2016_2020","associate_degree_percentage_2016_2020")
+summary(data_counties[ ,degree])
+```
+For bachelor’s degrees (2016–2020), the median share of adults with at least a bachelor’s degree is 24.7%, and the mean is slightly higher at 26.7%, indicating a mild right skew with some counties having much higher educational attainment. The upper quartile reaches 31.7%, and the maximum is as high as 82.4%, showing substantial inequality in bachelor attainment across counties. 
+
+For associate degrees (2016–2020), the median is 31.17%, mean 31.22%, and the distribution is more centered with a slightly narrower gap between mean and median. The maximum of 81.82% is quite extreme and likely represents specialized or small counties with unusual degree structures. Overall, associate degree attainment is generally more common than bachelor’s attainment, but both show wide dispersion.
+
+### Population summary statistics
+Regrading the original dataset, raw counts mostly reflect county size; shares reflect population structure. We create shares (percentages) of male and female for each county so we can compare counties fairly.
+
+```{r population summary}
+data_counties$MALE_PCT <- ifelse(data_counties$POPESTIMATE > 0,
+                                 100 * data_counties$POPEST_MALE / data_counties$POPESTIMATE,
+                                 NA)
+data_counties$FEMALE_PCT <- ifelse(data_counties$POPESTIMATE > 0,
+                                 100 * data_counties$POPEST_FEM / data_counties$POPESTIMATE,
+                                 NA)
+population <- c("POPESTIMATE","MALE_PCT","FEMALE_PCT")
+summary(data_counties[ , population])
+```
+Population estimates also vary widely across counties. The median total population is about 25,326, whereas the mean is much higher at 105,332, indicating a highly right-skewed distribution dominated by a few large counties. The maximum population exceeds 10 million, while the smallest counties have only 65 residents. 
+
+By composition, the gender split is essentially balanced: the median county is approximate 50.1% male and 49.9% female, with a tight IQR (male approximately 49.4–51.0%; female approximately 49.0–50.6%), so most counties cluster near 50/50.
+
+### Age structure summary statistics
+The original dataset has population ranging from 5-17, 18 to 65, 65 to above, we want to see the percentage, and we identify as 18-65 as working class in the labor force
+```{r age structure summary}
+under18_cnt <- rowSums(
+  cbind(data_counties$UNDER5_TOT,
+        data_counties$AGE513_TOT,
+        data_counties$AGE1417_TOT),
+  na.rm = TRUE
+)
+
+data_counties$UNDER18_PCT <- ifelse(
+  data_counties$POPESTIMATE > 0,
+  100 * under18_cnt / data_counties$POPESTIMATE,
+  NA_real_
+)
+data_counties$AGE18_65_PCT <- ifelse(data_counties$POPESTIMATE    > 0,
+                                 100 * (data_counties$AGE18PLUS_TOT - data_counties$AGE65PLUS_TOT)/ data_counties$POPESTIMATE,
+                                 NA)
+
+data_counties$AGE65_PLUS_PCT <- ifelse(data_counties$POPESTIMATE    > 0,
+                                 100 * data_counties$AGE65PLUS_TOT/ data_counties$POPESTIMATE,
+                                 NA)
+age_structure <- c("UNDER18_PCT","AGE18_65_PCT","AGE65_PLUS_PCT","MEDIAN_AGE_TOT")
+summary(data_counties[ , age_structure])
+```
+### Overall Interpretation
+
+Together, these summaries reveal strong heterogeneity in U.S. county characteristics. 
+
+Population and age distributions are highly skewed by a small number of large counties, while educational attainment is uneven, with most counties below 30% bachelor attainment but some with very high shares. 
+
+The age structure reflects an aging population overall, with significant variation by county. 
+
+# Establishing SMART Question
+
+Within-county comparisons by gender/age/degree aren’t possible with our data because we don’t have income broken out by sub-groups (for example, male income vs female income). We only have one per-capita income per county plus composition variables (gender shares, age shares, education shares).
+
+1. Is there a relationship between a county's economic income group and its college degree attainment group?
+
+2. Is there a relationship between a county's economic income group and its gender distribution?
+
+3. Is there a relationship between a county's economic income group and its age-structure?
+
+# 95% Confidence Interval
+
+## Calculate the 95% CI
+
+```{r  finding Confidence Intervals for income, degree, population}
+per_capita_2019_ttest <- t.test(x=data_counties$per_capita_personal_income_2019, conf.level=0.95)
+per_capita_2019_ci_95 <- per_capita_2019_ttest$conf.int
+
+per_capita_2020_ttest <- t.test(x=data_counties$per_capita_personal_income_2020, conf.level=0.95)
+per_capita_2020_ci_95 <- per_capita_2020_ttest$conf.int
+
+per_capita_2021_ttest <- t.test(x=data_counties$per_capita_personal_income_2021, conf.level=0.95)
+per_capita_2021_ci_95 <- per_capita_2021_ttest$conf.int
+
+bachelor_ttest <- t.test(x=data_counties$bachelor_degree_percentage_2016_2020, conf.level=0.95)
+bachelor_ci_95 <- bachelor_ttest$conf.int
+
+associate_ttest <- t.test(x=data_counties$associate_degree_percentage_2016_2020, conf.level=0.95)
+associate_ci_95 <- associate_ttest$conf.int
+
+population_ttest <- t.test(x=data_counties$POPESTIMATE, conf.level=0.95)
+population_ci_95 <- population_ttest$conf.int
+```
+
+```{r finding Confidence interval for age}
+median_age_ttest <- t.test(x=data_counties$MEDIAN_AGE_TOT, conf.level=0.95)
+median_age_ci_95 <- median_age_ttest$conf.int
+
+share_under18_ttest <- t.test(x=data_counties$UNDER18_PCT, conf.level=0.95)
+share_under18_ci_95 <- share_under18_ttest$conf.int
+share_under18 <- unname(share_under18_ttest$estimate)
+
+share_1865_ttest <- t.test(x=data_counties$AGE18_65_PCT, conf.level=0.95)
+share_1865_ci_95 <- share_1865_ttest$conf.int
+share_1865 <- unname(share_1865_ttest$estimate) 
+
+share_65_ttest <- t.test(x=data_counties$AGE65_PLUS_PCT, conf.level=0.95)
+share_65_ci_95 <- share_65_ttest$conf.int
+share_65 <- unname(share_65_ttest$estimate) 
+```
+
+```{r make into table, include = FALSE}
+num1  <- function(x) as.numeric(unname(x))[1]
+
+ci_tbl <- tibble::tribble(
+  ~Item,                             ~Time,       ~Mean,                                   ~`CI Low`,                         ~`CI High`,                                             ~Method,
+  "Per-capita personal income",      "2019",      num1(per_capita_2019_ttest$estimate),    num1(per_capita_2019_ci_95[1]),   num1(per_capita_2019_ci_95[2]),   "t-interval (mean)",
+  "Per-capita personal income",      "2020",      num1(per_capita_2020_ttest$estimate),    num1(per_capita_2020_ci_95[1]),   num1(per_capita_2020_ci_95[2]),   "t-interval (mean)",
+  "Per-capita personal income",      "2021",      num1(per_capita_2021_ttest$estimate),    num1(per_capita_2021_ci_95[1]),   num1(per_capita_2021_ci_95[2]),   "t-interval (mean)",
+  "Bachelor degree share (%)",       "2016–2020", num1(bachelor_ttest$estimate),           num1(bachelor_ci_95[1]),          num1(bachelor_ci_95[2]),          "t-interval (mean)",
+  "Associate degree share (%)",      "2016–2020", num1(associate_ttest$estimate),          num1(associate_ci_95[1]),         num1(associate_ci_95[2]),        "t-interval (mean)",
+  "County population",               "2020",      num1(population_ttest$estimate),         num1(population_ci_95[1]),        num1(population_ci_95[2]),       "t-interval (mean)",
+  "Median age (years)",              "2020",      num1(median_age_ttest$estimate),         num1(median_age_ci_95[1]),        num1(median_age_ci_95[2]),        "t-interval (mean)",
+  "Population share <18 (%)",        "2020",      num1(share_under18),                  num1(share_under18_ci_95[1]),           num1(share_under18_ci_95[2]),                        "t-interval (mean)",
+  "Population share 65+ (%)",        "2020",      num1(share_65),                    num1(share_65_ci_95[1]),             num1(share_65_ci_95[2]),             "t-interval (mean)",
+  "Population share 18–65 (%)",      "2020",      num1(share_1865),                  num1(share_1865_ci_95[1]),           num1(share_1865_ci_95[2]),           "t-interval (mean)"
+) |>
+  dplyr::mutate(
+    Mean     = round(as.numeric(Mean), 2),
+    `CI Low` = round(as.numeric(`CI Low`), 4),
+    `CI High`= round(as.numeric(`CI High`), 4)
+)    
+
+row_fills <- rep(c("#FFFFFF", "#F7F7F7"), length.out = nrow(ci_tbl))
+
+tbl_grob <- tableGrob(
+  ci_tbl,
+  rows = NULL,
+  theme = ttheme_default(
+    base_size = 10,
+    core = list(
+      bg_params = list(fill = row_fills, col = "grey70", lwd = 0.6),  # <- cell borders
+      fg_params = list(cex = 0.9)                                     # text
+    ),
+    colhead = list(
+      bg_params = list(fill = "#EDEDED", col = "grey70", lwd = 0.8),  # header borders
+      fg_params = list(fontface = "bold")
+    )
+  )
+)
+
+h_px <- 140 + 36 * nrow(ci_tbl) 
+w_px <- 1200
+
+agg_png("ci_summary_table.png", width = w_px, height = h_px, res = 150)
+grid.newpage(); grid.draw(tbl_grob)
+dev.off()
+
+grid.newpage(); grid.draw(tbl_grob)
+```
+
+**Per-capita income (2019–2021)**:
+
+- ***The mean county per-capita income in 2019*** is estimated to lie between (`r scales::comma(round(per_capita_2019_ci_95[1], 2))` , `r scales::comma(round(per_capita_2019_ci_95[2], 2))`).
+
+- ***For 2020***, the 95% CI is (`r scales::comma(round(per_capita_2020_ci_95[1], 2))` , `r scales::comma(round(per_capita_2020_ci_95[2], 2))`)
+
+- ***For 2021***, it is (`r scales::comma(round(per_capita_2021_ci_95[1], 2))` , `r scales::comma(round(per_capita_2021_ci_95[2], 2))`).
+
+The limited overlap across years indicates a statistically meaningful upward shift in the average county income.
+
+**Population (mean per county)**:
+
+- ***The mean county population*** is between (`r scales::comma(round(population_ci_95[1], 2))` , `r scales::comma(round(population_ci_95[2], 2))`) (95% CI). This is a wide band that reflects substantial heterogeneity across counties (very small rural counties vs large urban ones). This reflects the average county, not the national total. 
+
+**Education**:
+
+- ***Bachelor’s share***: `r if (exists("bachelor_ci_95")) paste0("(", round(bachelor_ci_95[1],2), ", ", round(bachelor_ci_95[2],2), ")")`.
+
+- ***Associate share ***: `r if (exists("associate_ci_95")) paste0("(", round(associate_ci_95[1],2), ", ", round(associate_ci_95[2],2), ")")`.
+
+The associate share exceeding bachelor’s is typical, but the gap is modest—worth checking regional patterns (metro vs rural county)
+
+**Population composition by age**:
+
+- ***Median age***: The mean of county median ages lies between (`r round(median_age_ci_95[1], 2)` , `r round(median_age_ci_95[2], 2)`) (95% CI), characterizing the average county’s age profile. As we can see here, age profile is tight and middle-aged.
+
+
+- ***Age 65+ overall share***: In the pooled population, the estimated share age 65+ is `r share_65`%, with a 95% CI of (`r share_65_ci_95[1]` , `r share_65_ci_95[2]`).
+
+- ***Under 18 overall share***: The overall share under age 18 is `r share_under18`%, with a 95% CI of (`r share_under18_ci_95[1]` , `r share_under18_ci_95[2]`).
+
+- ***Working age (18-65) overall share***: The overall share under age 18 is `r share_1865`%, with a 95% CI of (`r share_1865_ci_95[1]` , `r share_1865_ci_95[2]`).
+
+# Data cleaning
+
+## Remove extreme value (1.5 IQR method)
+
+To determine the extreme values to smoothen the distribution of income, we exclude extreme value using the IQR method to define the upper and lower bound and and flagged any value outside the bound.
+
+```{r remove extreme value for income}
+data_counties_No_Outliers <- data_counties %>%
+  select(state, county_FIPS, county,
+         per_capita_personal_income_2019,
+         per_capita_personal_income_2020,
+         per_capita_personal_income_2021) %>%
+  pivot_longer(
+    cols = starts_with("per_capita_personal_income_"),
+    names_to = "year",
+    values_to = "income"
+  ) %>%
+  mutate(year = as.integer(sub(".*_(\\d{4})$", "\\1", year)))
+
+data_counties_No_Outliers <- data_counties_No_Outliers %>%
+  group_by(year) %>%
+  mutate(
+    Q1 = quantile(income, 0.25, na.rm = TRUE),
+    Q3 = quantile(income, 0.75, na.rm = TRUE),
+    IQRv = Q3 - Q1,
+    lo = Q1 - 1.5 * IQRv,
+    hi = Q3 + 1.5 * IQRv
+  ) %>%
+  ungroup() %>%
+  filter(income >= lo, income <= hi) %>%
+  select(-Q1, -Q3, -IQRv, -lo, -hi)
+
+data_counties_No_Outliers <- data_counties_No_Outliers %>%
+  pivot_wider(
+    names_from = year,
+    values_from = income,
+    names_prefix = "No_Outlier_per_capita_personal_income_"
+  )  %>%
+  drop_na()
+
+data_counties <- data_counties %>%
+  left_join(data_counties_No_Outliers, by = c("state", "county_FIPS", "county"))
+
+rm(data_counties_No_Outliers)
+```
+
+### Ditrubution plot after removing extreme value
+```{r plot distribution}
+
+x_limits <- c(20000, 80000)
+x_breaks <- seq(20000, 80000, by = 10000)
+
+# 2020 histogram
+p2020 <- ggplot(data_counties, 
+                aes(x = No_Outlier_per_capita_personal_income_2020)) +
+  geom_histogram(bins = 40, fill = "#2ca02c", color = "white", alpha = 0.9) +
+  scale_x_continuous(labels = comma, limits = x_limits, breaks = x_breaks) +
+  labs(title = "2020", x = "Income (USD)", y = "Count") +
+  theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))
+
+
+p2020 <- p2020 +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p2020
+
+```
+
+After removing IQR outliers, the histograms by year become noticeably more symmetric and centered, indicating that a small number of very high-income counties were driving the skew
+
+
+# EDA
+
+## Normality test 
+
+**Objective**
+Assess whether the distribution of per-capita personal income (2019–2021) is approximately Normal, and decide how to proceed for hypothesis testing method for the next parts
+
+**Method**
+
+We evaluated normality using: quantile–quantile (QQ) plots against the Normal distribution
+
+**Plotting**
+
+```{r qqlot income 2020}
+income2020_qqplots <- qqnorm(data_counties$per_capita_personal_income_2020,
+                         main = "QQ Plot of Personal Income Per Capita in 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$per_capita_personal_income_2020, 
+       col = 2,
+       lwd = 2)
+
+```
+Our QQ plot suggests the presence of observations with unusually high income levels, indicating potential outliers in the upper tail of the distribution.
+
+```{r qqlot bachelor 2020}
+bachelor2020_qqplots <- qqnorm(data_counties$bachelor_degree_percentage_2016_2020,
+                         main = "QQ Plot of Bachelor degree percentage for working age population 2016 - 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$bachelor_degree_percentage_2016_2020, 
+       col = 2,
+       lwd = 2)
+
+```
+Our qqplot for bachelor degree percentage demonstrate a deviation from our line at both lower and upper tail of the graph, this also suggests us that there exist outliers in both ends for our sample data. 
+
+
+```{r qqlot associate 2020}
+associate2020_qqplots <- qqnorm(data_counties$associate_degree_percentage_2016_2020Test,
+                         main = "QQ Plot of Associate degree percentage for working age population 2016 - 2020",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$associate_degree_percentage_2016_2020Test, 
+       col = 2,
+       lwd = 2)
+```
+This qqplot imply that we have a approximately normally distributed sample data for the associate degree precentage. 
+
+
+
+**Result Analysis**
+
+All three QQ plots scream non-normal with a strong right tail. That’s expected at county level.
+
+What the plots show
+
+Per-capita income (2020): points bend above the line in the upper tail → positive skew / heavy right tail (a few very high-income counties). Mild deviation in lower tail.
+
+Bachelor/Associate numbers (2016–2020): extreme curvature and long upper tails. Many dots are piled near zero → lots of small counties + a few huge metros. These are counts, so non-normality is almost guaranteed.
+
+The raw  variable is non-normal. This does not invalidate parametric procedures per se (especially with large samples), but it suggests:
+
+- potential heteroskedasticity across groups,
+
+- inflated influence of extreme values,
+
+
+
+
+### Normality test after remove the extreme value
+```{r new qqplot 2020}
+income2020_qqplots_NoOut <- qqnorm(data_counties$No_Outlier_per_capita_personal_income_2020,
+                         main = "QQ Plot of Personal Income Per Capita in 2020, with no Outliers",
+                         xlab = "Theoretical Quantiles",
+                         ylab = "Sample Quantiles",
+                         plot.it = TRUE,
+                         datax = FALSE)
+qqline(data_counties$No_Outlier_per_capita_personal_income_2020, 
+       col = 2,
+       lwd = 2)
+```
+
+**Result Analysis**
+
+For per-capita personal income in 2020, the extreme values are predominantly on the high side (right tail), which is consistent with the QQ plots (heavy upper tail).
+
+
+
+These extreme values likely reflect genuine high-income counties rather than data entry errors (they are consistent across years and align with known distributional features of income).
+
+We will not be removing extreme value in our education level data because we will be using percentage data so the extreme value can not influence the data distribution that much and we can use log function to further smooth the distribution. 
+
+
+
+## Bar chart for comparison 
+
+We want to see how each state is doing compare the the overall average value.
+
+For this project, we will be focus on the per capita personal income of 2020 and the corresponding education level percentage data. 
+
+**Method**
+
+Our method for this visualization is simple: since we already have state indicator variables for our counties data, we group by state and calculate mean value for each state and store these value in a new data set. We then calculate the overall average which is represented by the horizontal red line in each of the bar charts. 
+
+
+### Bar chart for per capita personal income state leve 2020
+```{r  distribution of per capita income in 2020 for each state compare the mean}
+data_counties$state <- as.factor(data_counties$state)
+
+
+state_means <- data_counties %>%
+  group_by(state) %>%
+  summarize(mean_income = mean(per_capita_personal_income_2020, na.rm = TRUE))
+
+state_means_No_Outliers <- data_counties %>%
+  group_by(state) %>%
+  summarize(mean_income = mean(No_Outlier_per_capita_personal_income_2020, na.rm = TRUE))
+
+ggplot(state_means, aes(x = reorder(state, mean_income), y = mean_income)) +
+  geom_col(fill = "skyblue") + 
+  geom_hline(aes(yintercept = mean(mean_income, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Mean Income by State in 2020",
+       x = "State",
+       y = "Mean Income") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, size = 8)
+  )
+
+
+ggplot(state_means_No_Outliers, aes(x = reorder(state, mean_income), y = mean_income)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(mean_income, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Mean income without Outliers",
+       x = "State",
+       y = " Bachelor degree numbers") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+```
+
+
+### Bar chart for bachelor degree percentage state level 2020 
+```{r}
+
+state_means_bachelor <- data_counties %>%
+  group_by(state) %>%
+  summarize(bachelor_degree_percentage = mean(bachelor_degree_percentage_2016_2020, na.rm = TRUE))
+
+
+ggplot(state_means_bachelor, aes(x = reorder(state, bachelor_degree_percentage), y = bachelor_degree_percentage)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(bachelor_degree_percentage, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "percentage of bachelor degree from 2016-2020 by State",
+       x = "State",
+       y = " Bachelor degree percentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+
+
+```
+
+
+### Bar chart for associate degree percentage state level 2020
+```{r}
+
+state_means_associate <- data_counties %>%
+  group_by(state) %>%
+  summarize(associate_degree_percentage = mean(associate_degree_percentage_2016_2020Test, na.rm = TRUE))
+
+
+
+ggplot(state_means_associate, aes(x = reorder(state, associate_degree_percentage), y = associate_degree_percentage)) +
+  geom_col(fill = "skyblue") +
+  geom_hline(aes(yintercept = mean(associate_degree_percentage, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 1) +
+  labs(title = "Percentage of Associate degree from 2016-2020 by State",
+       x = "State",
+       y = " Associate degree percentage") +
+  
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
+
+
+```
+
+## Scatter plot to visualize correlation between our main variables
+
+```{r}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2016_2020, y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Bachelor’s Degree percentage vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Percentage of Bachelor's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
+  ) 
+
+ggplot(data_counties, aes(x = associate_degree_percentage_2016_2020Test , y = per_capita_personal_income_2020 )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "Associate’s Degree percentage vs. Per Capita Personal Income (2020) Scatter Plot",
+    x = "Percentage of Associate's Degree 2016-2020",
+    y = "Personal Income Per Capita (2020)"
+  ) 
+
+```
+
+Our scatter plot demonstrate that there is a slight positive correlation between bachelor degree percentage and per capita personal income. However, we can not see this trend in the associate degree percentage scatter plot, in fact we can hardly see any obvious correlation between associate percentage and per capita personal income.
+
+
+### log log scatter plot
+
+```{r scatterplot for bachlor percentage with respect to income , a log log relationship }
+
+ggplot(data_counties, aes(x = log(bachelor_degree_percentage_2016_2020), y = log(No_Outlier_per_capita_personal_income_2020) )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "log of Bachelor’s Degree percentage vs. log of Per Capita Personal Income (2020) Scatter Plot",
+    x = "log(Percentage of Bachelor's Degree 2016-2020)",
+    y = "log(Personal Income Per Capita (2020))"
+  ) 
+
+```
+
+```{r scatterplot for associate percentage with respect to income , a log log relationship}
+ggplot(data_counties, aes(x = log(associate_degree_percentage_2016_2020Test), y = log(No_Outlier_per_capita_personal_income_2020) )) +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    title = "log of Associate’s Degree percentage vs. log of Per Capita Personal Income (2020) Scatter Plot",
+    x = "log(Percentage of Associate's Degree 2016-2020)",
+    y = "log(Personal Income Per Capita (2020)"
+  ) 
+
+```
+
+We draw the scatter plot again after remove extreme value from our per capita income columns and take natural log of both income and education data to smooth the distribution and demonstrate the percentage change relationship between two variables. We can still see a clearly upward sloped correlation between bachelor degree percentage and per capita income while the relationship between associate degree percentage and per capita income remain unclear. However, it is showing a slight upward slope on the scatterplot.
+
+
+### Density Distributions
+
+```{r Density Distribution of Per Capita Personal Income (2020)}
+ggplot(data_counties, aes(x = per_capita_personal_income_2020)) +
+  geom_density(fill = "blue", alpha = 0.6, color = "darkblue") +
+  geom_vline(aes(xintercept = mean(per_capita_personal_income_2020, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Per Capita Personal Income (2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Per Capita Personal Income (2020)",
+    y = "Density"
+  )
+```
+
+
+```{r Density Distribution of Bachelors Degree Percentage}
+ggplot(data_counties, aes(x = bachelor_degree_percentage_2015_2019)) +
+  geom_density(fill = "green", alpha = 0.6, color = "darkgreen") +
+  geom_vline(aes(xintercept = mean(bachelor_degree_percentage_2015_2019, na.rm = T)), 
+             color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Bachelor's Degree Percentage (2015-2019)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with a Bachelor's Degree",
+    y = "Density"
+  )
+```
+
+```{r Density Distribution of Associate Degree Percentage}
+
+ggplot(data_counties, aes(x = associate_degree_percentage_2016_2020)) +
+  
+  geom_density(fill = "orange", alpha = 0.6, color = "darkorange") +
+  
+  geom_vline(aes(xintercept = mean(associate_degree_percentage_2016_2020, na.rm = TRUE)), 
+             color = "red", linetype = "dashed", size = 1) +
+  
+  theme_minimal() +
+  labs(
+    title = "Density Distribution of Associate Degree Percentage (2016-2020)",
+    subtitle = "The dashed red line indicates the mean.",
+    x = "Percentage of Population with an Associate's Degree",
+    y = "Density"
+  )
+```
+
+
+The majority of the counties are concentrated at low income levels, and income is heavily skewed to the right. This occurs because the mean income in a small number of extremely wealthy counties is much higher than the median. A similar pattern can be seen in the bachelors degree percentage, which sharply peaks at 20%, indicating that fewer counties have extremely high educational levels. In contrast, the Associate's degree distribution is structurally different; it peaks later and more centrally, proving it represents a broader and more stable base of educational attainment across the U.S. counties.
+
+# SMART Questions and Test
+
+
+
+
+### Chi-squares Test:
+The Chi-Square ($\chi^2$) test requires that we use categorical data, which means we must first group our numerical data (income and degree percentages) into discrete bins. We applied the Quantile Method to the 2020 Per-Capita Personal Income and the relevant degree percentages to create three categories for each variable: Low, Medium, and High. 
+
+This categorization used the 25th and 75th percentiles as cut-off points. Specifically, counties below the 25th percentile were classified as Low, those between the 25th and 75th percentiles as Medium, and those above the 75th percentile as High. This approach ensured that approximately one-quarter ($\approx 25\%$) of all counties fell into the Low group, one-half ($\approx 50\%$) into the Medium group, and one-quarter ($\approx 25\%$) into the High group for each variable. Following this categorization, the $\chi^2$ test was applied to determine the statistical association between the categorized income levels and the educational attainment groups.
+
+
+
+```{r  Chi-squares}
+
+data_counties <- data_counties %>%
+  mutate(income_cat = case_when(
+      per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.25, na.rm = TRUE) ~ "Low",
+      per_capita_personal_income_2020 < quantile(per_capita_personal_income_2020, 0.75, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"),
+      bachelor_cat = case_when(
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.25, na.rm = TRUE) ~ "Low",
+      bachelor_degree_percentage_2015_2019 < quantile(bachelor_degree_percentage_2015_2019, 0.75, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"),
+      associate_cat = case_when(
+      associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.25, na.rm = TRUE) ~ "Low",
+      associate_degree_percentage_2016_2020 < quantile(associate_degree_percentage_2016_2020, 0.75, na.rm = TRUE) ~ "Medium",
+      TRUE ~ "High"))
+
+data_counties$income_cat <- factor(data_counties$income_cat, 
+  levels = c("Low", "Medium", "High"))
+
+data_counties$bachelor_cat <- factor(data_counties$bachelor_cat, 
+  levels = c("Low", "Medium", "High"))
+
+data_counties$associate_cat <- factor(data_counties$associate_cat, 
+  levels = c("Low", "Medium", "High"))
+
+
+```
+
+### Personal Income vs. Bachelor degree 
+
+**Question:** Is there a statistically significant association between a county's Income Level and its Bachelor's Degree Percentage?
+
+**Hypothesis**
+
+Null Hypothesis ($H_0$): There is no association between Income Level and Bachelor's Degree Percentage. (They are independent.)
+
+Alternative Hypothesis ($H_A$): There is an association between Income Level and Bachelor's Degree Percentage.
+
+**Results**
+```{r}
+# Chi-square test: 
+chisq_income_bachelor <- chisq.test(table(data_counties$income_cat, data_counties$bachelor_cat))
+chisq_income_bachelor
+
+ggplot(data_counties, aes(x = income_cat, fill = bachelor_cat)) +
+  geom_bar(position = "fill") +
+  theme_minimal() +
+  labs(title = "Bachelor's Degree Distribution by Income Category",
+       x = "Income Category (2020)",
+       y = "Proportion of Counties",
+       fill = "Bachelor's Degree (%)") +
+  scale_y_continuous(labels = scales::percent)
+```
+The p-value is significantly less than $0.05$, so we reject the null hypothesis ($H_0$). This confirms an extremely strong and highly significant association between high income and high Bachelor's degree attainment.
+
+### Personal Income vs. Associate degree 
+
+**Question:** Is there a statistically confirmed association between a county's Income Level and its Associate Degree Percentage?
+
+**Hypothesis**
+
+Null Hypothesis ($H_0$): There is no association between Income Level and Associate Degree Percentage. (They are independent.)
+
+Alternative Hypothesis ($H_A$): There is an association between Income Level and Associate Degree Percentage.
+
+**Results**
+```{r}
+chisq_income_associate <- chisq.test(table(data_counties$income_cat, data_counties$associate_cat))
+chisq_income_associate
+
+# Visualize income vs. associate's degree relationship
+ggplot(data_counties, aes(x = income_cat, fill = associate_cat)) +
+  geom_bar(position = "fill") +
+  theme_minimal() +
+  labs(title = "Associate's Degree Distribution by Income Category",
+       x = "Income Category (2020)",
+       y = "Proportion of Counties",
+       fill = "Associate's Degree (%)") +
+  scale_y_continuous(labels = scales::percent)
+```
+The p-value is significantly less than $0.05$, so we reject the null hypothesis ($H_0$). This confirms a statistically significant association between income and Associate degree attainment
+The χ2 tests verify that there is a strong correlation between a county's educational profile and economic health (p<0.001 for both). There is a statistically proven correlation between income and both the bachelor's and associate's degree categories.
+
+The most important factor is the bachelor's degree, which has a stronger correlation with income (χ2≈1294) than an associate's degree (χ2≈209), by more than eight times. A bachelor's degree is the main prerequisite that structurally distinguishes high-income counties from all others, even though an associate's degree is helpful.
+
+
+### Personal Income vs. Gender
+
+**Hypotheses**
+
+$H_{0}$: (independence): Gender composition is the same in every income quartile
+
+$H_{1}$: Gender composition differs for at least one income quartile.
+
+**Method**
+
+- Break income quartiles from `per_capita_personal_income_2020` from Q1 to Q4.
+
+- For each quartile, summed people by gender using `POPEST_MALE` and `POPEST_FEM`.
+
+- Ran a Pearson χ² test of independence
+
+**Method**:
+
+```{r income vs gender}
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, 
+                    c(0, 0.25, 0.75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, 
+             breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Low","Medium","High"))
+
+ct_gender_income <- rbind(
+  Male   = tapply(data_counties$POPEST_MALE, inc_q, sum, na.rm = TRUE),
+  Female = tapply(data_counties$POPEST_FEM, inc_q, sum, na.rm = TRUE)
+)
+
+chi_gi <- chisq.test(ct_gender_income)
+chi_gi
+```
+
+
+**Conclusion** 
+
+Due to extremely small p-value, we ***reject $H_{0}$***. Gender and income quartile are not independent: the gender mix varies across income quartiles.
+
+**Male/Female share by income quartiles**
+
+```{r income vs gender graph}
+prop_ct <- prop.table(ct_gender_income, margin = 2)  
+
+par(mar = c(5, 5, 4, 8))  
+
+bar_x <- barplot(
+  prop_ct,
+  beside = TRUE,
+  col = c("steelblue", "pink"),
+  main = "Population by Gender and Income Quartile",
+  xlab = "Income Rank",
+  ylab = "Gender Proportion",
+  ylim = c(0, max(prop_ct)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x) + 1,  
+  y = max(prop_ct),    
+  legend = c("Male", "Female"),
+  fill = c("steelblue", "pink"),
+  xpd = TRUE)
+
+```
+
+```{r table of income share by gender}
+quartiles <- colnames(ct_gender_income)
+
+male   <- ct_gender_income["Male",   quartiles]
+female <- ct_gender_income["Female", quartiles]
+total  <- male + female
+
+tbl_gender_income <- data.frame(
+  `Income Rank`  = quartiles,
+  `Male Share (%)`   = round(100 * male   / total, 2),
+  `Female Share (%)` = round(100 * female / total, 2),
+  check.names = FALSE
+)
+
+knitr::kable(
+  tbl_gender_income,
+  row.names = FALSE,
+  align = c("l","r","r"),
+  caption = "Male/Female shares by income quartile (per-capita income 2020)."
+)
+
+```
+
+### Personal Income vs. Median age
+
+**Hypotheses**
+
+$H_{0}$: (independence): Income-quartile and median-age–quartile are independent (county counts spread the same)
+
+$H_{1}$: Median age differs for at least one income quartile.
+
+```{r income vs age}
+
+inc_brks <- quantile(data_counties$per_capita_personal_income_2020, c(0, .25, .5, .75, 1), na.rm = TRUE)
+inc_q <- cut(data_counties$per_capita_personal_income_2020, breaks = inc_brks, include.lowest = TRUE,
+             labels = c("Q1 (lowest)","Q2","Q3","Q4 (highest)"))
+
+
+age_brks <- quantile(data_counties$MEDIAN_AGE_TOT, c(0, .25, .5, .75, 1), na.rm = TRUE)
+age_q <- cut(data_counties$MEDIAN_AGE_TOT, breaks = age_brks, include.lowest = TRUE,
+             labels = c("Q1","Q2","Q3","Q4"))
+
+ct_income_age <- table(IncomeQuartile = inc_q, AgeQuartile = age_q)
+
+chi_age <- chisq.test(ct_income_age)
+
+prop_ct_age <- prop.table(ct_income_age, margin = 1)
+
+par(mar = c(5, 5, 4, 8))
+bar_x_age <- barplot(
+  t(prop_ct_age),
+  beside = TRUE,
+  col = c("lightblue", "steelblue", "blue", "navy"),
+  main = "Age Quartile Distribution by Income Quartile",
+  xlab = "Income Quartile",
+  ylab = "Proportion",
+  ylim = c(0, max(prop_ct_age)*1.1),
+  las = 1)
+
+legend(
+  x = max(bar_x_age) + 0.5,
+  y = max(prop_ct_age),
+  legend = c("Youngest",
+             "Young Adults",
+             "Middle-aged",
+             "Oldest"),,
+  fill = c("lightblue", "steelblue", "blue", "navy"),
+  xpd = TRUE)
+
+```
+**Conclusion** 
+
+We ***reject $H_{0}$***. Median age and income quartile are not independent: the median age varies across income quartiles. 
+
+The graph shows a straightforward connection between age and how much money people make. As income levels go up, the share of the oldest group gets bigger, making them the largest group in the top-earning bracket (Q4). The opposite is true for younger people; they are most common in the lowest-earning group (Q1) and their share of the population tends to shrink in the higher-income brackets.
+
+
